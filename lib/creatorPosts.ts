@@ -1,6 +1,5 @@
 import type { LiveStream, TicketOffering } from '../types/live';
 import type {
-  CreatePlateInput,
   CreatePostInput,
   CreatorPlate,
   CreatorPost,
@@ -253,38 +252,25 @@ export async function createCreatorPost(
   return data as CreatorPost;
 }
 
-/** @deprecated Use linkPlatesToPost from lib/plates for catalog plates. */
-export async function createPlatesForPost(postId: string, plates: CreatePlateInput[]): Promise<void> {
-  if (!plates.length) return;
+export async function fetchActiveLivePost(
+  creatorId: string,
+): Promise<{ id: string; title: string } | null> {
+  const { data, error } = await supabase
+    .from('creator_posts')
+    .select('id, title')
+    .eq('creator_id', creatorId)
+    .eq('post_type', 'live')
+    .eq('status', 'live')
+    .eq('is_live', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  const rows = plates.map((plate, index) => ({
-    post_id: postId,
-    label: plate.label,
-    description: plate.description ?? '',
-    price: plate.price,
-    quantity: plate.quantity ?? null,
-    sort_order: plate.sort_order ?? index,
-    image_url: plate.image_url ?? null,
-  }));
-
-  const { error } = await supabase.from('post_plates').insert(rows);
-  if (error) throw new Error(error.message);
+  if (error || !data) return null;
+  return { id: data.id, title: data.title };
 }
 
-export async function endLivePost(
-  postId: string,
-  creatorId: string,
-  options?: { bunnyLiveStreamId?: string | null },
-): Promise<void> {
-  if (options?.bunnyLiveStreamId) {
-    try {
-      const { stopBunnyLiveStream } = await import('./bunnyLive');
-      await stopBunnyLiveStream(options.bunnyLiveStreamId);
-    } catch (e) {
-      console.warn('[creatorPosts] Bunny live stop failed:', e);
-    }
-  }
-
+export async function endLivePost(postId: string, creatorId: string): Promise<void> {
   const { error } = await supabase
     .from('creator_posts')
     .update({ is_live: false, status: 'ended' })

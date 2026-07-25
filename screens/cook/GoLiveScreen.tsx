@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,15 +17,10 @@ import {
   createCreatorPost,
   displayHandle,
   endLivePost,
+  fetchActiveLivePost,
 } from '../../lib/creatorPosts';
 import { uploadShortToBunny } from '../../lib/bunnyUpload';
 import { isBunnyApiConfigured } from '../../lib/bunnyApi';
-import {
-  bunnyLiveLibraryId,
-  createBunnyLiveStream,
-  isBunnyLiveConfigured,
-  startBunnyLiveStream,
-} from '../../lib/bunnyLive';
 import { supabase } from '../../lib/supabase';
 import { cookTheme } from '../../theme/cookTheme';
 
@@ -33,10 +28,7 @@ type CreatorMode = 'short' | 'live';
 
 type LiveSession = {
   postId: string;
-  bunnyStreamId: string;
-  streamKey: string;
-  rtmpUrl: string;
-  playbackUrlHls: string;
+  title: string;
 };
 
 function Field({
@@ -99,6 +91,25 @@ export function GoLiveScreen() {
   const [minDonation, setMinDonation] = useState('8');
   const [donationGoal, setDonationGoal] = useState('100');
   const [readyInMinutes, setReadyInMinutes] = useState('30');
+
+  const refreshLiveSession = useCallback(async () => {
+    if (!user) {
+      setLiveSession(null);
+      return;
+    }
+
+    const active = await fetchActiveLivePost(user.id);
+    if (active) {
+      setLiveSession({ postId: active.id, title: active.title });
+      setMode('live');
+    } else {
+      setLiveSession(null);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    void refreshLiveSession();
+  }, [refreshLiveSession]);
 
   const pickVideo = useCallback(async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -220,30 +231,11 @@ export function GoLiveScreen() {
       setError('Add a title before going live.');
       return;
     }
-    if (!isBunnyLiveConfigured) {
-      setError(
-        'Bunny Live is not configured. Add EXPO_PUBLIC_BUNNY_LIVE_API_KEY and EXPO_PUBLIC_BUNNY_LIVE_LIBRARY_ID to .env, then restart Expo.',
-      );
-      return;
-    }
-
     setBusy(true);
     setError(null);
     setMessage(null);
 
     try {
-      const bunnyLive = await createBunnyLiveStream({
-        title: title.trim(),
-        description: description.trim() || undefined,
-      });
-
-      let activeLive = bunnyLive;
-      try {
-        activeLive = await startBunnyLiveStream(bunnyLive.guid);
-      } catch (startError) {
-        console.warn('[GoLiveScreen] Bunny live start failed, using created stream:', startError);
-      }
-
       const post = await createCreatorPost(user.id, {
         post_type: 'live',
         title: title.trim(),
@@ -256,10 +248,6 @@ export function GoLiveScreen() {
         ready_in_minutes: Number(readyInMinutes) || 30,
         is_live: true,
         status: 'live',
-        bunny_video_id: activeLive.guid,
-        video_url: activeLive.playbackUrlHls,
-        stream_key: activeLive.streamKey,
-        rtmp_url: activeLive.rtmpServer,
         cover_image: profile?.avatar_url ?? undefined,
       });
 
@@ -267,14 +255,9 @@ export function GoLiveScreen() {
 
       setLiveSession({
         postId: post.id,
-        bunnyStreamId: activeLive.guid,
-        streamKey: activeLive.streamKey,
-        rtmpUrl: activeLive.rtmpServer,
-        playbackUrlHls: activeLive.playbackUrlHls,
+        title: title.trim(),
       });
-      setMessage(
-        `Live stream created on Bunny (library ${bunnyLiveLibraryId}). Connect OBS/Larix, then ticket holders can join from For You.`,
-      );
+      setMessage('You\'re live! Viewers will see your session in the feed — live streaming video is coming soon.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not go live');
     } finally {
@@ -293,14 +276,15 @@ export function GoLiveScreen() {
     profile?.avatar_url,
   ]);
 
-  const stopLive = useCallback(async () => {
+  const endLiveSession = useCallback(async () => {
     if (!user || !liveSession) return;
     setBusy(true);
+    setError(null);
     try {
-      await endLivePost(liveSession.postId, user.id, {
-        bunnyLiveStreamId: liveSession.bunnyStreamId,
-      });
+      await endLivePost(liveSession.postId, user.id);
       setLiveSession(null);
+      setTitle('');
+      setDescription('');
       setMessage('Live stream ended.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not end stream');
@@ -308,6 +292,18 @@ export function GoLiveScreen() {
       setBusy(false);
     }
   }, [liveSession, user]);
+
+  const stopLive = useCallback(() => {
+    if (!liveSession) return;
+    Alert.alert(
+      'End live stream?',
+      'Your session will no longer appear as live in the feed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'End stream', style: 'destructive', onPress: () => void endLiveSession() },
+      ],
+    );
+  }, [endLiveSession, liveSession]);
 
   return (
     <KeyboardAvoidingView
@@ -327,8 +323,52 @@ export function GoLiveScreen() {
           className="mt-1 text-[14px]"
           style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
         >
-          Post a short or go live — sell tickets so viewers can watch you cook.
+          Post a short or start a mock live session — live streaming video is coming soon.
         </Text>
+
+        {liveSession ? (
+          <View
+            className="mt-5 rounded-2xl border border-white/10 px-4 py-4"
+            style={{ backgroundColor: cookTheme.surfaceElevated }}
+          >
+            <View className="flex-row items-start justify-between gap-3">
+              <View className="flex-1">
+                <View className="mb-1.5 flex-row items-center">
+                  <View className="mr-2 h-2 w-2 rounded-full" style={{ backgroundColor: cookTheme.live }} />
+                  <Text className="text-[13px] text-white" style={{ fontFamily: 'DMSans_600SemiBold' }}>
+                    LIVE now
+                  </Text>
+                </View>
+                <Text className="text-[15px] text-white" style={{ fontFamily: 'DMSans_600SemiBold' }}>
+                  {liveSession.title}
+                </Text>
+                <Text
+                  className="mt-2 text-[12px] leading-5"
+                  style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
+                >
+                  Tap below to end your session when you&apos;re finished.
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => stopLive()}
+                disabled={busy}
+                className="flex-row items-center rounded-xl px-3 py-2"
+                style={{ backgroundColor: cookTheme.live, opacity: busy ? 0.7 : 1 }}
+              >
+                {busy ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="stop-circle" size={16} color="#fff" />
+                    <Text className="ml-1.5 text-[13px] text-white" style={{ fontFamily: 'DMSans_600SemiBold' }}>
+                      End
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         <View
           className="mt-5 flex-row items-center gap-2 rounded-full p-1"
@@ -336,11 +376,15 @@ export function GoLiveScreen() {
         >
           <Pressable
             onPress={() => {
+              if (liveSession) return;
               setMode('short');
               setError(null);
             }}
             className="flex-1 flex-row items-center justify-center rounded-full py-2.5"
-            style={mode === 'short' ? { backgroundColor: cookTheme.accent } : undefined}
+            style={{
+              backgroundColor: mode === 'short' ? cookTheme.accent : undefined,
+              opacity: liveSession ? 0.45 : 1,
+            }}
           >
             <Ionicons name="film-outline" size={16} color="#fff" />
             <Text
@@ -440,25 +484,19 @@ export function GoLiveScreen() {
                     LIVE now
                   </Text>
                 </View>
-                <Text className="text-[12px] text-white/70" style={{ fontFamily: 'DMSans_400Regular' }}>
-                  Bunny library: {bunnyLiveLibraryId}
-                </Text>
-                <Text className="mt-1 text-[12px] text-white/70" style={{ fontFamily: 'DMSans_400Regular' }}>
-                  RTMP server: {liveSession.rtmpUrl}
-                </Text>
-                <Text className="mt-1 text-[12px] text-white/70" style={{ fontFamily: 'DMSans_400Regular' }}>
-                  Stream key: {liveSession.streamKey}
+                <Text className="text-[15px] text-white" style={{ fontFamily: 'DMSans_600SemiBold' }}>
+                  {liveSession.title}
                 </Text>
                 <Text
-                  className="mt-3 text-[12px] leading-5"
+                  className="mt-3 text-[13px] leading-5"
                   style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
                 >
-                  In OBS or Larix: paste the RTMP server and stream key above, then start broadcasting. Ticket
-                  holders watch via HLS on For You after you go live.
+                  Your session appears in the For You feed with a LIVE badge. Live streaming video is coming soon —
+                  end the session when you&apos;re done.
                 </Text>
               </View>
               <Pressable
-                onPress={() => void stopLive()}
+                onPress={() => stopLive()}
                 disabled={busy}
                 className="flex-row items-center justify-center rounded-2xl py-3.5"
                 style={{ backgroundColor: cookTheme.live, opacity: busy ? 0.7 : 1 }}
@@ -466,9 +504,12 @@ export function GoLiveScreen() {
                 {busy ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text className="text-[15px] text-white" style={{ fontFamily: 'DMSans_600SemiBold' }}>
-                    End live stream
-                  </Text>
+                  <>
+                    <Ionicons name="stop-circle" size={20} color="#fff" />
+                    <Text className="ml-2 text-[15px] text-white" style={{ fontFamily: 'DMSans_600SemiBold' }}>
+                      End live stream
+                    </Text>
+                  </>
                 )}
               </Pressable>
             </View>

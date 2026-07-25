@@ -543,6 +543,7 @@ export function ProfileScreen() {
                 stream={item}
                 height={height}
                 isActive={index === viewerIndex}
+                shouldPreload={Math.abs(index - viewerIndex) <= 1}
                 liked={likedIds.has(item.id)}
                 onToggleLike={() =>
                   setLikedIds((prev) => {

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { safePress } from '../../lib/safePress';
 import { cookTheme } from '../../theme/cookTheme';
 import type { TabId } from '../../types/live';
 
@@ -43,7 +44,7 @@ export function BottomNav({ activeTab, onTabChange, cartCount = 0 }: Props) {
             return (
               <Pressable
                 key={tab.id}
-                onPress={() => onTabChange(tab.id)}
+                onPress={safePress(() => onTabChange(tab.id))}
                 className="items-center justify-center"
                 hitSlop={6}
               >
@@ -60,7 +61,7 @@ export function BottomNav({ activeTab, onTabChange, cartCount = 0 }: Props) {
           return (
             <Pressable
               key={tab.id}
-              onPress={() => onTabChange(tab.id)}
+              onPress={safePress(() => onTabChange(tab.id))}
               className="min-w-[56px] items-center justify-center py-1"
               hitSlop={6}
             >

@@ -24,8 +24,6 @@ export function GooglePickupMap({ chefs, plates, userLocation }: PickupMapProps)
     [coordinates.latitude, coordinates.longitude, delta],
   );
 
-  const mapKey = `${chefs.map((c) => c.id).join('|')}|${plates.map((p) => p.id).join('|')}`;
-
   const plateByStreamId = useMemo(
     () => new Map(plates.map((plate) => [plate.stream.id, plate])),
     [plates],
@@ -33,7 +31,6 @@ export function GooglePickupMap({ chefs, plates, userLocation }: PickupMapProps)
 
   return (
     <MapView
-      key={mapKey}
       style={styles.map}
       provider={PROVIDER_GOOGLE}
       initialRegion={initialRegion}
@@ -45,7 +42,8 @@ export function GooglePickupMap({ chefs, plates, userLocation }: PickupMapProps)
       rotateEnabled={false}
       pitchEnabled={false}
       mapType="standard"
-      userInterfaceStyle="dark"
+      moveOnMarkerPress={false}
+      loadingEnabled={false}
     >
       {chefs.map((chef) => {
         const plate = plateByStreamId.get(chef.id);

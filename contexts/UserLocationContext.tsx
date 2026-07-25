@@ -1,4 +1,4 @@
-import * as Location from 'expo-location';
+import type { LocationObject, LocationSubscription } from 'expo-location';
 import {
   createContext,
   useCallback,
@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { AppState, Linking, Platform } from 'react-native';
-import type { Coordinates } from '../lib/geo';
+import { distanceMiles, type Coordinates } from '../lib/geo';
 
 type UserLocationState = {
   location: Coordinates | null;
@@ -22,6 +22,26 @@ type UserLocationState = {
 };
 
 const UserLocationContext = createContext<UserLocationState | null>(null);
+
+type ExpoLocationModule = typeof import('expo-location');
+let locationModule: ExpoLocationModule | null | undefined;
+
+async function getLocationModule(): Promise<ExpoLocationModule | null> {
+  if (locationModule !== undefined) return locationModule;
+  if (Platform.OS === 'web') {
+    locationModule = null;
+    return null;
+  }
+
+  try {
+    locationModule = await import('expo-location');
+    return locationModule;
+  } catch (e) {
+    console.warn('[location] expo-location unavailable:', e);
+    locationModule = null;
+    return null;
+  }
+}
 
 async function readWebLocation(): Promise<Coordinates> {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -41,7 +61,7 @@ async function readWebLocation(): Promise<Coordinates> {
   });
 }
 
-function coordsFromPosition(pos: Location.LocationObject): Coordinates {
+function coordsFromPosition(pos: LocationObject): Coordinates {
   return {
     latitude: pos.coords.latitude,
     longitude: pos.coords.longitude,
@@ -49,6 +69,11 @@ function coordsFromPosition(pos: Location.LocationObject): Coordinates {
 }
 
 async function readNativeLocation(): Promise<Coordinates> {
+  const Location = await getLocationModule();
+  if (!Location) {
+    throw new Error('Location is unavailable in this build. Install a new development or production build.');
+  }
+
   const servicesEnabled = await Location.hasServicesEnabledAsync();
   if (!servicesEnabled) {
     throw new Error('Turn on location services to see nearby chefs.');
@@ -80,7 +105,7 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const watchRef = useRef<Location.LocationSubscription | null>(null);
+  const watchRef = useRef<LocationSubscription | null>(null);
 
   const stopWatch = useCallback(() => {
     watchRef.current?.remove();
@@ -92,16 +117,26 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
 
     stopWatch();
 
+    const Location = await getLocationModule();
+    if (!Location) return;
+
     const { status } = await Location.getForegroundPermissionsAsync();
     if (status !== 'granted') return;
 
     watchRef.current = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.Balanced,
-        distanceInterval: 75,
-        timeInterval: 15_000,
+        distanceInterval: 200,
+        timeInterval: 30_000,
       },
-      (pos) => setLocation(coordsFromPosition(pos)),
+      (pos) => {
+        const next = coordsFromPosition(pos);
+        setLocation((prev) => {
+          if (!prev) return next;
+          if (distanceMiles(prev, next) < 0.1) return prev;
+          return next;
+        });
+      },
     );
   }, [stopWatch]);
 

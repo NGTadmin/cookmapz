@@ -48,5 +48,7 @@ export function applyStreamDistances(
 }
 
 export function sortStreamsByDistance(streams: LiveStream[]): LiveStream[] {
-  return [...streams].sort((a, b) => a.distanceMiles - b.distanceMiles);
+  return [...streams].sort(
+    (a, b) => (a.distanceMiles ?? Number.POSITIVE_INFINITY) - (b.distanceMiles ?? Number.POSITIVE_INFINITY),
+  );
 }

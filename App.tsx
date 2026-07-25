@@ -22,6 +22,11 @@ import { cookTheme } from './theme/cookTheme';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const FONT_LOAD_TIMEOUT_MS = 4000;
+const SPLASH_FAILSAFE_MS = 6000;
+
+function hideSplashScreen() {
+  void SplashScreen.hideAsync().catch(() => {});
+}
 
 class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -70,12 +75,16 @@ export default function App() {
   const fontsReady = (syneLoaded && dmLoaded) || fontTimedOut;
 
   useEffect(() => {
-    const timer = setTimeout(() => setFontTimedOut(true), FONT_LOAD_TIMEOUT_MS);
-    return () => clearTimeout(timer);
+    const fontTimer = setTimeout(() => setFontTimedOut(true), FONT_LOAD_TIMEOUT_MS);
+    const splashTimer = setTimeout(hideSplashScreen, SPLASH_FAILSAFE_MS);
+    return () => {
+      clearTimeout(fontTimer);
+      clearTimeout(splashTimer);
+    };
   }, []);
 
   useEffect(() => {
-    if (fontsReady) void SplashScreen.hideAsync();
+    if (fontsReady) hideSplashScreen();
   }, [fontsReady]);
 
   useEffect(() => {

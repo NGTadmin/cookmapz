@@ -11,9 +11,6 @@ type Props = {
   onClose: () => void;
 };
 
-/** @deprecated Use TicketBar */
-export const PlatesBar = TicketBar;
-
 const textShadow = {
   textShadowColor: 'rgba(0,0,0,0.85)',
   textShadowOffset: { width: 0, height: 1 },

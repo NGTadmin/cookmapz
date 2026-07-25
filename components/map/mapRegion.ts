@@ -1,5 +1,5 @@
 import type { Coordinates } from '../../lib/geo';
-import type { ClaimedPlate } from '../../screens/cook/types';
+import type { PurchasedTicket } from '../../screens/cook/types';
 import type { LiveStream } from '../../types/live';
 
 const SF_CENTER: Coordinates = { latitude: 37.7749, longitude: -122.4194 };
@@ -11,7 +11,7 @@ export type MapCamera = {
 
 function collectPoints(
   chefs: LiveStream[],
-  plates: ClaimedPlate[],
+  plates: PurchasedTicket[],
   userLocation?: Coordinates | null,
 ): Coordinates[] {
   const points = chefs.map((chef) => ({
@@ -32,7 +32,7 @@ function collectPoints(
 
 export function getMapCamera(
   chefs: LiveStream[],
-  plates: ClaimedPlate[],
+  plates: PurchasedTicket[],
   userLocation?: Coordinates | null,
 ): MapCamera {
   const points = collectPoints(chefs, plates, userLocation);

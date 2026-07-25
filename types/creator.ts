@@ -103,12 +103,3 @@ export type CreateCreatorPlateInput = {
   price: number;
   image_url?: string | null;
 };
-
-export type CreatePlateInput = {
-  label: string;
-  description?: string;
-  price: number;
-  quantity?: number | null;
-  sort_order?: number;
-  image_url?: string | null;
-};

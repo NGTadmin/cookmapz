@@ -21,9 +21,3 @@ export type PurchasedTicket = {
   ticketImageUrl?: string | null;
   status: TicketStatus;
 };
-
-/** @deprecated Use PurchasedTicket */
-export type ClaimedPlate = PurchasedTicket;
-
-/** @deprecated Use TicketStatus */
-export type OrderStatus = TicketStatus;

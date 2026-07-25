@@ -53,7 +53,11 @@ export function liveListingsFromStreams(streams: LiveStream[]): NearbyLiveListin
     }
   }
 
-  return listings.sort((a, b) => a.stream.distanceMiles - b.stream.distanceMiles);
+  return listings.sort(
+    (a, b) =>
+      (a.stream.distanceMiles ?? Number.POSITIVE_INFINITY) -
+      (b.stream.distanceMiles ?? Number.POSITIVE_INFINITY),
+  );
 }
 
 export function userHasStreamAccess(

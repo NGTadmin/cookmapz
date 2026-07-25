@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, View, useWindowDimensions } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav } from './BottomNav';
 import { SideNav } from './SideNav';
+import { ScreenErrorBoundary } from '../ScreenErrorBoundary';
 import { useAuth } from '../../hooks/useAuth';
 import { UserLocationProvider } from '../../hooks/useUserLocation';
 import { useWebLayout } from '../../hooks/useWebLayout';
@@ -16,6 +17,7 @@ import { ProfileScreen } from '../../screens/cook/ProfileScreen';
 import type { CartItem, PurchasedTicket } from '../../screens/cook/types';
 import { createTicketPurchase, fetchTicketHistory } from '../../lib/plateOrders';
 import { primaryTicketForStream } from '../../lib/tickets';
+import { safePress } from '../../lib/safePress';
 import { cookTheme } from '../../theme/cookTheme';
 import type { LiveStream, TabId, TicketOffering } from '../../types/live';
 
@@ -161,6 +163,8 @@ export function AppShell() {
       setCartItems([]);
       setCartView('orders');
       setActiveTab('cart');
+    } catch (e) {
+      console.warn('[AppShell] checkout failed:', e);
     } finally {
       setCheckoutBusy(false);
     }
@@ -196,39 +200,55 @@ export function AppShell() {
   switch (activeTab) {
     case 'live':
       content = (
-        <FeedScreen
-          onAddTicket={addTicketToCart}
-          onOpenCreator={onOpenCreator}
-          purchasedTickets={tickets}
-          viewerId={user.id}
-          focusStreamId={focusStreamId}
-          onFocusStreamHandled={() => setFocusStreamId(null)}
-        />
+        <ScreenErrorBoundary title="For You unavailable">
+          <FeedScreen
+            onAddTicket={addTicketToCart}
+            onOpenCreator={onOpenCreator}
+            purchasedTickets={tickets}
+            viewerId={user.id}
+            focusStreamId={focusStreamId}
+            onFocusStreamHandled={() => setFocusStreamId(null)}
+          />
+        </ScreenErrorBoundary>
       );
       break;
     case 'map':
-      content = <MapScreen tickets={tickets} onAddTicket={addTicketToCart} />;
+      content = (
+        <ScreenErrorBoundary title="Map unavailable">
+          <MapScreen tickets={tickets} onAddTicket={addTicketToCart} />
+        </ScreenErrorBoundary>
+      );
       break;
     case 'go-live':
-      content = <GoLiveScreen />;
+      content = (
+        <ScreenErrorBoundary title="Cook unavailable">
+          <GoLiveScreen />
+        </ScreenErrorBoundary>
+      );
       break;
     case 'cart':
       content = (
-        <CartScreen
-          cartItems={cartItems}
-          tickets={tickets}
-          ticketsLoading={ticketsLoading}
-          checkoutBusy={checkoutBusy}
-          view={cartView}
-          onViewChange={setCartView}
-          onRemoveFromCart={removeFromCart}
-          onCheckout={() => void checkoutCart()}
-          onJoinLive={joinLive}
-        />
+        <ScreenErrorBoundary title="Tickets unavailable">
+          <CartScreen
+            cartItems={cartItems}
+            tickets={tickets}
+            ticketsLoading={ticketsLoading}
+            checkoutBusy={checkoutBusy}
+            view={cartView}
+            onViewChange={setCartView}
+            onRemoveFromCart={removeFromCart}
+            onCheckout={safePress(() => checkoutCart(), { errorTitle: 'Checkout failed' })}
+            onJoinLive={joinLive}
+          />
+        </ScreenErrorBoundary>
       );
       break;
     case 'profile':
-      content = <ProfileScreen />;
+      content = (
+        <ScreenErrorBoundary title="Profile unavailable">
+          <ProfileScreen />
+        </ScreenErrorBoundary>
+      );
       break;
   }
 
@@ -260,14 +280,16 @@ export function AppShell() {
             ) : null}
             {creatorOverlay ? (
               <View className="absolute inset-0 z-[200]">
-                <CreatorProfileScreen
-                  creatorKey={creatorOverlay.creatorKey}
-                  startPostId={creatorOverlay.startPostId}
-                  onBack={() => setCreatorOverlay(null)}
-                  onDonate={(stream) => {
-                    addTicketToCart(stream, primaryTicketForStream(stream));
-                  }}
-                />
+                <ScreenErrorBoundary title="Creator profile unavailable" onRetry={() => setCreatorOverlay(null)}>
+                  <CreatorProfileScreen
+                    creatorKey={creatorOverlay.creatorKey}
+                    startPostId={creatorOverlay.startPostId}
+                    onBack={() => setCreatorOverlay(null)}
+                    onDonate={(stream) => {
+                      addTicketToCart(stream, primaryTicketForStream(stream));
+                    }}
+                  />
+                </ScreenErrorBoundary>
               </View>
             ) : null}
           </View>

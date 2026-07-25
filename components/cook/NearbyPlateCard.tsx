@@ -11,9 +11,6 @@ type Props = {
   onPress: () => void;
 };
 
-/** @deprecated Use NearbyLiveCard */
-export const NearbyPlateCard = NearbyLiveCard;
-
 export function NearbyLiveCard({ listing, hasUserLocation, onPress }: Props) {
   const { stream, label, description, price, imageUrl } = listing;
 

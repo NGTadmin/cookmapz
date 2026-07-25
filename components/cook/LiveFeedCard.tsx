@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { Animated, Image, Pressable, Text, View } from 'react-native';
 import { formatCount } from '../../data/lives';
 import { useWebLayout } from '../../hooks/useWebLayout';
@@ -18,6 +18,7 @@ type Props = {
   stream: LiveStream;
   height: number;
   isActive: boolean;
+  shouldPreload?: boolean;
   liked: boolean;
   onToggleLike: () => void;
   onBuyTicket: () => void;
@@ -266,10 +267,11 @@ function WebVideoNavButton({
   );
 }
 
-export function LiveFeedCard({
+export const LiveFeedCard = memo(function LiveFeedCard({
   stream,
   height,
   isActive,
+  shouldPreload = false,
   liked,
   onToggleLike,
   onBuyTicket,
@@ -346,6 +348,7 @@ export function LiveFeedCard({
               ref={videoPlayerRef}
               stream={stream}
               isActive={isActive}
+              shouldPreload={shouldPreload}
               posterUri={posterUri}
               locked={locked}
               onBuyTicket={onBuyTicket}
@@ -355,8 +358,8 @@ export function LiveFeedCard({
               onPress={() => videoPlayerRef.current?.togglePlayback()}
             />
             <LinearGradient
-              colors={['transparent', 'transparent', 'rgba(0,0,0,0.55)']}
-              locations={[0, 0.72, 1]}
+              colors={['transparent', 'rgba(0,0,0,0.55)']}
+              locations={[0.72, 1]}
               pointerEvents="none"
               style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
             />
@@ -402,6 +405,7 @@ export function LiveFeedCard({
         ref={videoPlayerRef}
         stream={stream}
         isActive={isActive}
+        shouldPreload={shouldPreload}
         posterUri={posterUri}
         locked={locked}
         onBuyTicket={onBuyTicket}
@@ -413,8 +417,8 @@ export function LiveFeedCard({
       />
 
       <LinearGradient
-        colors={['transparent', 'transparent', 'rgba(0,0,0,0.55)']}
-        locations={[0, 0.72, 1]}
+        colors={['transparent', 'rgba(0,0,0,0.55)']}
+        locations={[0.72, 1]}
         pointerEvents="none"
         style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
       />
@@ -448,4 +452,4 @@ export function LiveFeedCard({
       ) : null}
     </View>
   );
-}
+});

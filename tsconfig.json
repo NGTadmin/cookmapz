@@ -3,7 +3,8 @@
   "compilerOptions": {
     "strict": true,
     "incremental": true,
-    "module": "ESNext"
+    "module": "ESNext",
+    "resolveJsonModule": true
   },
   "include": [
     "**/*.ts",

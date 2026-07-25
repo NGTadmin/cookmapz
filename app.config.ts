@@ -1,11 +1,38 @@
 import type { ExpoConfig } from 'expo/config';
+import packageJson from './package.json';
 
 const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+
+/** Dev client breaks standalone App Store builds — only include for development profile / local Metro. */
+const includeDevClient =
+  process.env.EAS_BUILD_PROFILE !== 'production' &&
+  process.env.EAS_BUILD_PROFILE !== 'preview';
+
+const plugins: ExpoConfig['plugins'] = [
+  ...(includeDevClient ? (['expo-dev-client'] as const) : []),
+  [
+    'expo-image-picker',
+    {
+      photosPermission:
+        'Allow CookMapz to access your photos for profile pictures and cooking shorts.',
+    },
+  ],
+  'expo-system-ui',
+  'expo-font',
+  'expo-video',
+  [
+    'expo-location',
+    {
+      locationWhenInUsePermission:
+        'Allow CookMapz to show nearby chefs, pickup distances, and your position on the map.',
+    },
+  ],
+];
 
 const config: ExpoConfig = {
   name: 'CookMapz',
   slug: 'cookmapz',
-  version: '1.0.0',
+  version: packageJson.version,
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: 'cookmapz',
@@ -49,26 +76,7 @@ const config: ExpoConfig = {
     bundler: 'metro',
     output: 'single',
   },
-  plugins: [
-    'expo-dev-client',
-    'expo-sqlite',
-      [
-      'expo-image-picker',
-      {
-        photosPermission: 'Allow CookMapz to access your photos for profile pictures and cooking shorts.',
-      },
-    ],
-    'expo-system-ui',
-    'expo-font',
-    'expo-video',
-    [
-      'expo-location',
-      {
-        locationWhenInUsePermission:
-          'Allow CookMapz to show nearby chefs, pickup distances, and your position on the map.',
-      },
-    ],
-  ],
+  plugins,
   extra: {
     eas: {
       projectId: '94eefcf2-2928-402e-9ebd-ca8b46e26453',

@@ -59,6 +59,3 @@ export type TicketOffering = {
   quantity?: number | null;
   imageUrl?: string | null;
 };
-
-/** @deprecated Use TicketOffering */
-export type PlateOffering = TicketOffering;

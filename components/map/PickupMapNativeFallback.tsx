@@ -52,7 +52,7 @@ export function PickupMapNativeFallback({ chefs, plates, userLocation }: PickupM
 
       <View style={styles.banner}>
         <Text style={styles.bannerText}>
-          Google Maps requires a dev build. Run `npx expo run:ios` or `npx expo run:android`.
+          Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY to enable Google Maps on mobile.
         </Text>
       </View>
     </View>

@@ -12,9 +12,6 @@ type Props = {
   onAddTicket: (ticket: TicketOffering) => void;
 };
 
-/** @deprecated Use TicketSheet */
-export const DonateSheet = TicketSheet;
-
 export function TicketSheet({ visible, stream, onClose, onAddTicket }: Props) {
   if (!stream) return null;
 

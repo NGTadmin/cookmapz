@@ -17,6 +17,7 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+google-play-service-account.json
 
 # Metro
 .metro-health-check*
@@ -44,3 +45,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Local demo seed media (large; used by npm run seed:demo)
+scripts/downloads/*.mp4
+
+# Python venv for scripts/download_tiktok.py
+.venv/

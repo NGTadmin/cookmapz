@@ -83,9 +83,6 @@ export async function fetchTicketHistory(buyerId: string): Promise<PurchasedTick
     .filter((ticket): ticket is PurchasedTicket => ticket != null);
 }
 
-/** @deprecated Use fetchTicketHistory */
-export const fetchOrderHistory = fetchTicketHistory;
-
 export async function createTicketPurchase(input: {
   buyerId: string;
   postId: string;
@@ -112,9 +109,6 @@ export async function createTicketPurchase(input: {
 
   return data as TicketPurchaseRow;
 }
-
-/** @deprecated Use createTicketPurchase */
-export const createPlateOrder = createTicketPurchase;
 
 export function ticketFromStream(stream: LiveStream) {
   return primaryTicketForStream(stream);

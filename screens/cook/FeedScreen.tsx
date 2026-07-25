@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -32,6 +32,77 @@ type Props = {
   focusStreamId?: string | null;
   onFocusStreamHandled?: () => void;
 };
+
+type FeedRowProps = {
+  stream: LiveStream;
+  index: number;
+  feedHeight: number;
+  isActive: boolean;
+  shouldPreload: boolean;
+  liked: boolean;
+  commentCount: number;
+  purchasedTickets: PurchasedTicket[];
+  viewerId?: string | null;
+  hasUserLocation: boolean;
+  isDesktop: boolean;
+  canGoPrev: boolean;
+  canGoNext: boolean;
+  onToggleLike: (id: string) => void;
+  onBuyTicket: (stream: LiveStream) => void;
+  onAsk: (stream: LiveStream) => void;
+  onAddTicket: (stream: LiveStream, ticket: TicketOffering) => void;
+  onOpenCreator: (stream: LiveStream) => void;
+  onPrevVideo: (index: number) => void;
+  onNextVideo: (index: number) => void;
+};
+
+const FeedRow = memo(function FeedRow({
+  stream,
+  index,
+  feedHeight,
+  isActive,
+  shouldPreload,
+  liked,
+  commentCount,
+  purchasedTickets,
+  viewerId,
+  hasUserLocation,
+  isDesktop,
+  canGoPrev,
+  canGoNext,
+  onToggleLike,
+  onBuyTicket,
+  onAsk,
+  onAddTicket,
+  onOpenCreator,
+  onPrevVideo,
+  onNextVideo,
+}: FeedRowProps) {
+  return (
+    <View className={Platform.OS === 'web' ? 'web-feed-item' : undefined}>
+      <LiveFeedCard
+        stream={stream}
+        height={feedHeight}
+        isActive={isActive}
+        shouldPreload={shouldPreload}
+        liked={liked}
+        onToggleLike={() => onToggleLike(stream.id)}
+        onBuyTicket={() => onBuyTicket(stream)}
+        onAsk={() => onAsk(stream)}
+        commentCount={commentCount}
+        onAddTicket={(ticket) => onAddTicket(stream, ticket)}
+        purchasedTickets={purchasedTickets}
+        viewerId={viewerId}
+        onOpenCreator={onOpenCreator}
+        onPrevVideo={isDesktop ? () => onPrevVideo(index) : undefined}
+        onNextVideo={isDesktop ? () => onNextVideo(index) : undefined}
+        canGoPrev={isDesktop && canGoPrev}
+        canGoNext={isDesktop && canGoNext}
+        hasUserLocation={hasUserLocation}
+      />
+    </View>
+  );
+});
 
 export function FeedScreen({
   onAddTicket,
@@ -82,7 +153,7 @@ export function FeedScreen({
     if (first?.index != null) setActiveIndex(first.index);
   }).current;
 
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
   const toggleLike = useCallback((id: string) => {
     setLikedIds((prev) => {
@@ -113,6 +184,68 @@ export function FeedScreen({
       return { ...prev, [postId]: count };
     });
   }, []);
+
+  const handleBuyTicket = useCallback((stream: LiveStream) => {
+    setTicketStream(stream);
+  }, []);
+
+  const handleAsk = useCallback((stream: LiveStream) => {
+    setCommentStream(stream);
+  }, []);
+
+  const handleOpenCreator = useCallback(
+    (stream: LiveStream) => onOpenCreator(creatorKeyForStream(stream), stream.id),
+    [onOpenCreator],
+  );
+
+  const flatListExtraData = useMemo(
+    () => ({ activeIndex, likedIds, commentCounts, purchasedTickets }),
+    [activeIndex, likedIds, commentCounts, purchasedTickets],
+  );
+
+  const renderFeedRow = useCallback(
+    ({ item, index }: { item: LiveStream; index: number }) => (
+      <FeedRow
+        stream={item}
+        index={index}
+        feedHeight={feedHeight}
+        isActive={index === activeIndex}
+        shouldPreload={Math.abs(index - activeIndex) <= 1}
+        liked={likedIds.has(item.id)}
+        commentCount={commentCounts[item.id] ?? item.commentCount ?? 0}
+        purchasedTickets={purchasedTickets}
+        viewerId={viewerId}
+        hasUserLocation={userLocation != null}
+        isDesktop={isDesktop}
+        canGoPrev={index > 0}
+        canGoNext={index < displayStreams.length - 1}
+        onToggleLike={toggleLike}
+        onBuyTicket={handleBuyTicket}
+        onAsk={handleAsk}
+        onAddTicket={onAddTicket}
+        onOpenCreator={handleOpenCreator}
+        onPrevVideo={goToVideo}
+        onNextVideo={goToVideo}
+      />
+    ),
+    [
+      activeIndex,
+      commentCounts,
+      displayStreams.length,
+      feedHeight,
+      goToVideo,
+      handleAsk,
+      handleBuyTicket,
+      handleOpenCreator,
+      isDesktop,
+      likedIds,
+      onAddTicket,
+      purchasedTickets,
+      toggleLike,
+      userLocation,
+      viewerId,
+    ],
+  );
 
   return (
     <View
@@ -171,6 +304,12 @@ export function FeedScreen({
         snapToAlignment="start"
         disableIntervalMomentum
         className={Platform.OS === 'web' ? 'web-feed-scroll' : undefined}
+        windowSize={5}
+        maxToRenderPerBatch={3}
+        initialNumToRender={2}
+        removeClippedSubviews={false}
+        updateCellsBatchingPeriod={50}
+        extraData={flatListExtraData}
         onScrollToIndexFailed={(info) => {
           listRef.current?.scrollToOffset({
             offset: info.averageItemLength * info.index,
@@ -185,29 +324,7 @@ export function FeedScreen({
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         onMomentumScrollEnd={onMomentumScrollEnd}
-        renderItem={({ item, index }) => (
-          <View className={Platform.OS === 'web' ? 'web-feed-item' : undefined}>
-            <LiveFeedCard
-              stream={item}
-              height={feedHeight}
-              isActive={index === activeIndex}
-              liked={likedIds.has(item.id)}
-              onToggleLike={() => toggleLike(item.id)}
-              onBuyTicket={() => setTicketStream(item)}
-              onAsk={() => setCommentStream(item)}
-              commentCount={commentCounts[item.id] ?? item.commentCount ?? 0}
-              onAddTicket={(ticket) => onAddTicket(item, ticket)}
-              purchasedTickets={purchasedTickets}
-              viewerId={viewerId}
-              onOpenCreator={(s) => onOpenCreator(creatorKeyForStream(s), s.id)}
-              onPrevVideo={isDesktop ? () => goToVideo(index - 1) : undefined}
-              onNextVideo={isDesktop ? () => goToVideo(index + 1) : undefined}
-              canGoPrev={isDesktop && index > 0}
-              canGoNext={isDesktop && index < displayStreams.length - 1}
-              hasUserLocation={userLocation != null}
-            />
-          </View>
-        )}
+        renderItem={renderFeedRow}
       />
       )}
 
