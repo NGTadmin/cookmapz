@@ -4,8 +4,10 @@
   // dist/ must exist before deploy — run: npm run build:web  (or npm run deploy:cloudflare)
   "name": "cookmapz",
   "compatibility_date": "2026-07-16",
-  "assets": {
+  
+"assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
-  }
+    "not_found_handling": "single-page-application",
+    "command": "npm run build:web"
+  },
 }
