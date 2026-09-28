@@ -6,6 +6,15 @@
   "compatibility_date": "2026-07-16",
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application","routes": [
+    {
+      "pattern": "cookmapz.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.cookmapz.com",
+      "custom_domain": true
+    }
+  ],
   }
 }
