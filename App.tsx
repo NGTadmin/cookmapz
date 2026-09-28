@@ -64,15 +64,20 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error
 }
 
 export default function App() {
-  const [syneLoaded] = useSyne({ Syne_700Bold, Syne_800ExtraBold });
-  const [dmLoaded] = useDmSans({
+  const [syneLoaded, syneError] = useSyne({ Syne_700Bold, Syne_800ExtraBold });
+  const [dmLoaded, dmError] = useDmSans({
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_600SemiBold,
   });
   const [fontTimedOut, setFontTimedOut] = useState(false);
 
-  const fontsReady = (syneLoaded && dmLoaded) || fontTimedOut;
+  const fontsReady = (syneLoaded && dmLoaded) || fontTimedOut || Boolean(syneError || dmError);
+
+  useEffect(() => {
+    if (syneError) console.warn('[App] Syne font load failed:', syneError.message);
+    if (dmError) console.warn('[App] DM Sans font load failed:', dmError.message);
+  }, [syneError, dmError]);
 
   useEffect(() => {
     const fontTimer = setTimeout(() => setFontTimedOut(true), FONT_LOAD_TIMEOUT_MS);

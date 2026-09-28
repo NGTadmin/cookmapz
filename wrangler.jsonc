@@ -2,6 +2,8 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   // Worker name must match Cloudflare dashboard (cookmapz).
   // dist/ must exist before deploy — run: npm run build:web  (or npm run deploy:cloudflare)
+  // build:web renames assets/node_modules → assets/npm so Cloudflare uploads fonts
+  // (Wrangler always skips directories named node_modules).
   "name": "cookmapz",
   "compatibility_date": "2026-07-16",
   "assets": {
