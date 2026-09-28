@@ -27,7 +27,7 @@ export function PickupMap({ chefs, plates, userLocation }: PickupMapProps) {
   if (!apiKey) {
     return (
       <View style={[styles.map, styles.fallback]}>
-        <Text style={styles.fallbackText}>Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY to enable the map on web.</Text>
+        <Text style={styles.fallbackText}>Map unavailable right now. Live cooks will appear here once the map is configured.</Text>
       </View>
     );
   }
