@@ -19,7 +19,7 @@ import { cookTheme } from '../../theme/cookTheme';
 type AuthMode = 'sign-in' | 'sign-up';
 
 export function LoginScreen() {
-  const { configured, loading, signIn, signUp } = useAuth();
+  const { configured, loading, signIn, signUp, signInWithGoogle } = useAuth();
   const { isDesktop } = useWebLayout();
   const { height } = useWindowDimensions();
   const [mode, setMode] = useState<AuthMode>('sign-in');
@@ -27,6 +27,7 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,6 +67,15 @@ export function LoginScreen() {
 
     setBusy(false);
   }, [displayName, email, mode, password, resetForm, signIn, signUp]);
+
+  const onGoogle = useCallback(async () => {
+    setGoogleBusy(true);
+    setError(null);
+    setMessage(null);
+    const result = await signInWithGoogle();
+    if (result.error) setError(result.error);
+    setGoogleBusy(false);
+  }, [signInWithGoogle]);
 
   if (!configured) {
     return (
@@ -239,7 +249,7 @@ export function LoginScreen() {
 
             <Pressable
               onPress={() => void onSubmit()}
-              disabled={busy}
+              disabled={busy || googleBusy}
               className="mt-1 flex-row items-center justify-center rounded-2xl py-3.5"
               style={{ backgroundColor: cookTheme.accent, opacity: busy ? 0.7 : 1 }}
             >
@@ -257,6 +267,41 @@ export function LoginScreen() {
                     style={{ fontFamily: 'DMSans_600SemiBold' }}
                   >
                     {mode === 'sign-in' ? 'Sign in' : 'Create account'}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+
+            <View className="my-5 flex-row items-center">
+              <View className="h-px flex-1 bg-white/10" />
+              <Text
+                className="mx-3 text-[12px] uppercase tracking-wide"
+                style={{ fontFamily: 'DMSans_600SemiBold', color: cookTheme.textMuted }}
+              >
+                or
+              </Text>
+              <View className="h-px flex-1 bg-white/10" />
+            </View>
+
+            <Pressable
+              onPress={() => void onGoogle()}
+              disabled={busy || googleBusy}
+              className="flex-row items-center justify-center rounded-2xl border border-white/15 py-3.5"
+              style={{
+                backgroundColor: cookTheme.surfaceElevated,
+                opacity: googleBusy ? 0.7 : 1,
+              }}
+            >
+              {googleBusy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={18} color="#fff" />
+                  <Text
+                    className="ml-2 text-[15px] text-white"
+                    style={{ fontFamily: 'DMSans_600SemiBold' }}
+                  >
+                    Continue with Google
                   </Text>
                 </>
               )}

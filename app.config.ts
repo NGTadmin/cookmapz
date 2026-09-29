@@ -20,6 +20,7 @@ const plugins: ExpoConfig['plugins'] = [
   'expo-system-ui',
   'expo-font',
   'expo-video',
+  'expo-web-browser',
   [
     'expo-location',
     {

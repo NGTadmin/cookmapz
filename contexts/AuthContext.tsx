@@ -1,4 +1,5 @@
 import type { Session, User } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import {
   createContext,
   useCallback,
@@ -8,6 +9,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Platform } from 'react-native';
+import {
+  createSessionFromLinkUrl,
+  signInWithGoogle as performGoogleSignIn,
+  subscribeToAuthLinks,
+} from '../lib/googleAuth';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { Profile } from '../types/database';
 
@@ -23,6 +30,7 @@ type AuthState = {
     password: string,
     displayName?: string,
   ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -87,6 +95,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!isSupabaseConfigured || Platform.OS === 'web') return;
+
+    let active = true;
+
+    void Linking.getInitialURL().then((url) => {
+      if (!active || !url) return;
+      void createSessionFromLinkUrl(url);
+    });
+
+    const unsubscribe = subscribeToAuthLinks((url) => {
+      void createSessionFromLinkUrl(url);
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!session?.user) {
       setProfile(null);
       return;
@@ -118,6 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const signInWithGoogle = useCallback(async () => performGoogleSignIn(), []);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setProfile(null);
@@ -132,10 +162,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured: isSupabaseConfigured,
       signIn,
       signUp,
+      signInWithGoogle,
       signOut,
       refreshProfile,
     }),
-    [session, profile, loading, signIn, signUp, signOut, refreshProfile],
+    [session, profile, loading, signIn, signUp, signInWithGoogle, signOut, refreshProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
