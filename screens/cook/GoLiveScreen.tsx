@@ -18,6 +18,7 @@ import {
   displayHandle,
   endLivePost,
   fetchActiveLivePost,
+  uploadCreatorVideo,
 } from '../../lib/creatorPosts';
 import { uploadShortToBunny } from '../../lib/bunnyUpload';
 import { isBunnyApiConfigured } from '../../lib/bunnyApi';
@@ -140,12 +141,6 @@ export function GoLiveScreen() {
       setError('Select a video to post.');
       return;
     }
-    if (!isBunnyApiConfigured) {
-      setError(
-        'Bunny Stream is not configured. Add EXPO_PUBLIC_BUNNY_STREAM_API_KEY and EXPO_PUBLIC_BUNNY_STREAM_LIBRARY_ID to .env, then restart Expo.',
-      );
-      return;
-    }
 
     setBusy(true);
     setError(null);
@@ -171,37 +166,51 @@ export function GoLiveScreen() {
       const chefName = profile?.display_name ?? user.email?.split('@')[0] ?? 'Home Chef';
       const chefHandle = profile ? displayHandle(profile) : '@chef';
 
-      const bunny = await uploadShortToBunny({
-        title: title.trim(),
-        description: description.trim() || undefined,
-        fileUri: videoUri,
-        metaTags: [
-          { property: 'creatorPostId', value: post.id },
-          { property: 'creatorId', value: user.id },
-          { property: 'chefName', value: chefName },
-          { property: 'chefHandle', value: chefHandle },
-          { property: 'chefAvatar', value: profile?.avatar_url ?? '' },
-          { property: 'pickupAddress', value: pickupAddress.trim() },
-          { property: 'pickupNeighborhood', value: pickupNeighborhood.trim() },
-          { property: 'minDonation', value: String(Number(minDonation) || 8) },
-          { property: 'donationGoal', value: String(Number(donationGoal) || 100) },
-          { property: 'readyInMinutes', value: String(Number(readyInMinutes) || 30) },
-        ],
-      });
+      if (isBunnyApiConfigured) {
+        const bunny = await uploadShortToBunny({
+          title: title.trim(),
+          description: description.trim() || undefined,
+          fileUri: videoUri,
+          metaTags: [
+            { property: 'creatorPostId', value: post.id },
+            { property: 'creatorId', value: user.id },
+            { property: 'chefName', value: chefName },
+            { property: 'chefHandle', value: chefHandle },
+            { property: 'chefAvatar', value: profile?.avatar_url ?? '' },
+            { property: 'pickupAddress', value: pickupAddress.trim() },
+            { property: 'pickupNeighborhood', value: pickupNeighborhood.trim() },
+            { property: 'minDonation', value: String(Number(minDonation) || 8) },
+            { property: 'donationGoal', value: String(Number(donationGoal) || 100) },
+            { property: 'readyInMinutes', value: String(Number(readyInMinutes) || 30) },
+          ],
+        });
 
-      const { error: updateError } = await supabase
-        .from('creator_posts')
-        .update({
-          bunny_video_id: bunny.videoId,
-          thumbnail_url: bunny.thumbnailUrl,
-          cover_image: bunny.thumbnailUrl ?? profile?.avatar_url ?? null,
-          status: 'published',
-        })
-        .eq('id', post.id);
+        const { error: updateError } = await supabase
+          .from('creator_posts')
+          .update({
+            bunny_video_id: bunny.videoId,
+            thumbnail_url: bunny.thumbnailUrl,
+            cover_image: bunny.thumbnailUrl ?? profile?.avatar_url ?? null,
+            status: 'published',
+          })
+          .eq('id', post.id);
 
-      if (updateError) throw new Error(updateError.message);
+        if (updateError) throw new Error(updateError.message);
+        setMessage('Short posted. It may take a minute to process, then check For You and your profile.');
+      } else {
+        const videoUrl = await uploadCreatorVideo(user.id, post.id, videoUri, videoMime);
+        const { error: updateError } = await supabase
+          .from('creator_posts')
+          .update({
+            video_url: videoUrl,
+            cover_image: profile?.avatar_url ?? null,
+            status: 'published',
+          })
+          .eq('id', post.id);
 
-      setMessage('Short uploaded to Bunny! It may take a minute to process, then check For You and your profile.');
+        if (updateError) throw new Error(updateError.message);
+        setMessage('Short posted. Check For You and your profile.');
+      }
       setVideoUri(null);
       setTitle('');
       setDescription('');
