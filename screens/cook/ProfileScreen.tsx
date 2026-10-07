@@ -108,8 +108,9 @@ export function ProfileScreen() {
   const { height, profileWidth, isWeb, isDesktop } = useWebLayout();
   const insets = useSafeAreaInsets();
   const bottomNavInset = 58 + Math.max(insets.bottom, 10);
-  const profilePadding = 40;
-  const gridGap = 2;
+  const horizontalPad = isDesktop ? 40 : 20;
+  const profilePadding = horizontalPad * 2;
+  const gridGap = isDesktop ? 10 : 2;
   const cellSize = Math.floor((profileWidth - profilePadding - gridGap * 2) / 3);
   const plateCellSize = Math.floor((profileWidth - profilePadding - gridGap) / 2);
   const [streams, setStreams] = useState<LiveStream[]>([]);
@@ -283,8 +284,14 @@ export function ProfileScreen() {
           ...(isWeb && isDesktop ? { alignSelf: 'center' as const } : undefined),
         }}
       >
-      <View className="flex-row items-center justify-between px-5 pt-4 pb-1">
-        <Text className="text-[28px] text-white" style={{ fontFamily: 'Syne_800ExtraBold' }}>
+      <View
+        className="flex-row items-center justify-between pb-2"
+        style={{ paddingHorizontal: horizontalPad, paddingTop: isDesktop ? 28 : 16 }}
+      >
+        <Text
+          className="text-white"
+          style={{ fontFamily: 'Syne_800ExtraBold', fontSize: isDesktop ? 40 : 28 }}
+        >
           Profile
         </Text>
         <Pressable
@@ -313,27 +320,42 @@ export function ProfileScreen() {
             width: cellSize * 3 + gridGap * 2,
             alignSelf: 'center',
           }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: bottomNavInset + 16 }}
+          contentContainerStyle={{
+            paddingHorizontal: horizontalPad,
+            paddingBottom: bottomNavInset + (isDesktop ? 32 : 16),
+          }}
           onScrollBeginDrag={() => setGridMenuId(null)}
           ListHeaderComponent={
-            <View className="mb-5 items-center pt-2">
+            <View
+              className="items-center"
+              style={{ marginBottom: isDesktop ? 36 : 20, paddingTop: isDesktop ? 16 : 8 }}
+            >
               {setupIncomplete ? (
                 <Pressable
                   onPress={() => setEditProfileOpen(true)}
-                  className="mb-4 w-full rounded-2xl border border-white/10 px-4 py-3"
-                  style={{ backgroundColor: cookTheme.surfaceElevated }}
+                  className="w-full rounded-2xl border border-white/10"
+                  style={{
+                    backgroundColor: cookTheme.surfaceElevated,
+                    marginBottom: isDesktop ? 28 : 16,
+                    paddingHorizontal: isDesktop ? 20 : 16,
+                    paddingVertical: isDesktop ? 16 : 12,
+                  }}
                 >
                   <View className="flex-row items-center justify-between">
                     <View className="flex-1 pr-3">
                       <Text
-                        className="text-[14px] text-white"
-                        style={{ fontFamily: 'DMSans_600SemiBold' }}
+                        className="text-white"
+                        style={{ fontFamily: 'DMSans_600SemiBold', fontSize: isDesktop ? 16 : 14 }}
                       >
                         Finish setting up your account
                       </Text>
                       <Text
-                        className="mt-1 text-[12px] leading-5"
-                        style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
+                        className="mt-1 leading-5"
+                        style={{
+                          fontFamily: 'DMSans_400Regular',
+                          color: cookTheme.textMuted,
+                          fontSize: isDesktop ? 14 : 12,
+                        }}
                       >
                         Add a profile photo and display name so neighbors recognize you.
                       </Text>
@@ -348,7 +370,7 @@ export function ProfileScreen() {
                   uri={profile?.avatar_url}
                   name={profile?.display_name ?? user?.email?.split('@')[0]}
                   email={profile?.email ?? user?.email}
-                  size={96}
+                  size={isDesktop ? 132 : 96}
                   style={{ opacity: avatarBusy ? 0.6 : 1 }}
                 />
                 <View
@@ -362,17 +384,31 @@ export function ProfileScreen() {
                   )}
                 </View>
               </Pressable>
-              <Pressable onPress={() => setEditProfileOpen(true)} className="mt-3">
-                <Text className="text-[13px] text-white" style={{ fontFamily: 'DMSans_500Medium' }}>
+              <Pressable onPress={() => setEditProfileOpen(true)} style={{ marginTop: isDesktop ? 16 : 12 }}>
+                <Text
+                  className="text-white"
+                  style={{ fontFamily: 'DMSans_500Medium', fontSize: isDesktop ? 15 : 13 }}
+                >
                   Edit profile
                 </Text>
               </Pressable>
-              <Text className="mt-3 text-[22px] text-white" style={{ fontFamily: 'Syne_800ExtraBold' }}>
+              <Text
+                className="text-white"
+                style={{
+                  fontFamily: 'Syne_800ExtraBold',
+                  fontSize: isDesktop ? 32 : 22,
+                  marginTop: isDesktop ? 16 : 12,
+                }}
+              >
                 {name}
               </Text>
               <Text
-                className="mt-0.5 text-[14px]"
-                style={{ fontFamily: 'DMSans_500Medium', color: cookTheme.textMuted }}
+                style={{
+                  fontFamily: 'DMSans_500Medium',
+                  color: cookTheme.textMuted,
+                  fontSize: isDesktop ? 16 : 14,
+                  marginTop: 4,
+                }}
               >
                 {handle}
               </Text>
@@ -385,21 +421,24 @@ export function ProfileScreen() {
                 </Text>
               ) : null}
 
-              <View className="mt-5 flex-row gap-8">
-                <Stat label="Videos" value={String(streams.length)} />
-                <Stat label="Live" value={String(streams.filter((s) => s.isLive).length)} />
-                <Stat label="Likes" value={formatCount(totalLikes)} />
+              <View className="flex-row" style={{ marginTop: isDesktop ? 28 : 20, gap: isDesktop ? 56 : 32 }}>
+                <Stat label="Videos" value={String(streams.length)} large={isDesktop} />
+                <Stat label="Live" value={String(streams.filter((s) => s.isLive).length)} large={isDesktop} />
+                <Stat label="Likes" value={formatCount(totalLikes)} large={isDesktop} />
               </View>
 
-              <View className="mt-6 w-full flex-row border-b border-white/10">
+              <View
+                className="w-full flex-row border-b border-white/10"
+                style={{ marginTop: isDesktop ? 32 : 24 }}
+              >
                 <View
-                  className="flex-1 items-center border-b-2 pb-2 pt-1"
+                  className="flex-1 items-center border-b-2 pb-3 pt-1"
                   style={{ borderColor: cookTheme.accent }}
                 >
-                  <Ionicons name="grid-outline" size={20} color="#fff" />
+                  <Ionicons name="grid-outline" size={isDesktop ? 24 : 20} color="#fff" />
                   <Text
-                    className="mt-1 text-[11px]"
-                    style={{ fontFamily: 'DMSans_600SemiBold', color: '#fff' }}
+                    className="mt-1"
+                    style={{ fontFamily: 'DMSans_600SemiBold', color: '#fff', fontSize: isDesktop ? 13 : 11 }}
                   >
                     Videos
                   </Text>
@@ -408,17 +447,21 @@ export function ProfileScreen() {
             </View>
           }
           ListEmptyComponent={
-            <View className="mt-6 items-center px-6">
-              <Ionicons name="videocam-outline" size={40} color={cookTheme.textMuted} />
+            <View className="items-center px-8" style={{ marginTop: isDesktop ? 48 : 24 }}>
+              <Ionicons name="videocam-outline" size={isDesktop ? 56 : 40} color={cookTheme.textMuted} />
               <Text
-                className="mt-3 text-center text-[15px] text-white"
-                style={{ fontFamily: 'DMSans_500Medium' }}
+                className="mt-4 text-center text-white"
+                style={{ fontFamily: 'DMSans_500Medium', fontSize: isDesktop ? 18 : 15 }}
               >
                 No videos yet
               </Text>
               <Text
-                className="mt-1 text-center text-[13px] leading-5"
-                style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
+                className="mt-2 max-w-md text-center leading-6"
+                style={{
+                  fontFamily: 'DMSans_400Regular',
+                  color: cookTheme.textMuted,
+                  fontSize: isDesktop ? 15 : 13,
+                }}
               >
                 Post a short or go live from the Cook tab — set a ticket price so viewers can watch you cook.
               </Text>
@@ -590,15 +633,19 @@ export function ProfileScreen() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, large = false }: { label: string; value: string; large?: boolean }) {
   return (
     <View className="items-center">
-      <Text className="text-[18px] text-white" style={{ fontFamily: 'Syne_700Bold' }}>
+      <Text className="text-white" style={{ fontFamily: 'Syne_700Bold', fontSize: large ? 24 : 18 }}>
         {value}
       </Text>
       <Text
-        className="mt-0.5 text-[12px]"
-        style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
+        style={{
+          fontFamily: 'DMSans_400Regular',
+          color: cookTheme.textMuted,
+          fontSize: large ? 14 : 12,
+          marginTop: 4,
+        }}
       >
         {label}
       </Text>

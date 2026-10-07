@@ -4,8 +4,10 @@ export const WEB_DESKTOP_BREAKPOINT = 992;
 const SIDE_NAV_WIDTH = 256;
 /** Matches AppShell `max-w-lg` (32rem). */
 const MOBILE_WEB_MAX_WIDTH = 512;
-/** TikTok-style centered profile column on wide web layouts. */
+/** Phone-width profile column on narrow web. */
 export const PROFILE_COLUMN_MAX_WIDTH = 560;
+/** Wider desktop profile so the header and grid aren't a thin centered strip. */
+export const PROFILE_COLUMN_DESKTOP_MAX_WIDTH = 960;
 
 export function useWebLayout() {
   const { width, height } = useWindowDimensions();
@@ -21,7 +23,11 @@ export function useWebLayout() {
       ? Math.min(width, MOBILE_WEB_MAX_WIDTH)
       : width;
 
-  const profileWidth = isWeb ? Math.min(contentWidth, PROFILE_COLUMN_MAX_WIDTH) : width;
+  const profileWidth = isDesktop
+    ? Math.min(Math.max(contentWidth - 64, 0), PROFILE_COLUMN_DESKTOP_MAX_WIDTH)
+    : isWeb
+      ? Math.min(contentWidth, PROFILE_COLUMN_MAX_WIDTH)
+      : width;
 
   return {
     isWeb,
