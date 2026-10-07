@@ -15,7 +15,15 @@ import {
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { displayHandle } from '../../lib/creatorPosts';
-import { isProfileSetupIncomplete, normalizeHandle, updateUserProfile, uploadProfileAvatar } from '../../lib/profiles';
+import {
+  BIO_MAX,
+  DISPLAY_NAME_MAX,
+  HANDLE_MAX,
+  isProfileSetupIncomplete,
+  normalizeHandle,
+  updateUserProfile,
+  uploadProfileAvatar,
+} from '../../lib/profiles';
 import { cookTheme } from '../../theme/cookTheme';
 
 type Props = {
@@ -185,13 +193,20 @@ export function EditProfileScreen({ onBack }: Props) {
           </Pressable>
         </View>
 
-        <Field label="Display name" value={displayName} onChangeText={setDisplayName} placeholder="Maya Chen" />
+        <Field
+          label="Display name"
+          value={displayName}
+          onChangeText={setDisplayName}
+          placeholder="Maya Chen"
+          maxLength={DISPLAY_NAME_MAX}
+        />
         <Field
           label="Handle"
           value={handle}
           onChangeText={setHandle}
           placeholder="mayafires"
           autoCapitalize="none"
+          maxLength={HANDLE_MAX}
         />
         <Text
           className="-mt-2 mb-4 text-[12px]"
@@ -205,6 +220,7 @@ export function EditProfileScreen({ onBack }: Props) {
           onChangeText={setBio}
           placeholder="Home cook in the Mission…"
           multiline
+          maxLength={BIO_MAX}
         />
 
         {error ? (
@@ -242,6 +258,7 @@ function Field({
   placeholder,
   multiline,
   autoCapitalize = 'sentences',
+  maxLength,
 }: {
   label: string;
   value: string;
@@ -249,27 +266,39 @@ function Field({
   placeholder?: string;
   multiline?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  maxLength?: number;
 }) {
   return (
     <View className="mb-4">
-      <Text
-        className="mb-2 text-[12px] uppercase tracking-wide"
-        style={{ fontFamily: 'DMSans_600SemiBold', color: cookTheme.textMuted }}
-      >
-        {label}
-      </Text>
+      <View className="mb-2 flex-row items-center justify-between">
+        <Text
+          className="text-[12px] uppercase tracking-wide"
+          style={{ fontFamily: 'DMSans_600SemiBold', color: cookTheme.textMuted }}
+        >
+          {label}
+        </Text>
+        {maxLength ? (
+          <Text
+            className="text-[12px]"
+            style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
+          >
+            {value.length}/{maxLength}
+          </Text>
+        ) : null}
+      </View>
       <TextInput
         value={value}
-        onChangeText={onChangeText}
+        onChangeText={(next) => onChangeText(maxLength ? next.slice(0, maxLength) : next)}
         placeholder={placeholder}
         placeholderTextColor="rgba(168, 162, 154, 0.7)"
         multiline={multiline}
         autoCapitalize={autoCapitalize}
+        maxLength={maxLength}
         className="rounded-2xl border border-white/10 px-4 py-3.5 text-[15px] text-white"
         style={{
           fontFamily: 'DMSans_400Regular',
           backgroundColor: cookTheme.surfaceElevated,
-          minHeight: multiline ? 88 : undefined,
+          minHeight: multiline ? 120 : undefined,
           textAlignVertical: multiline ? 'top' : 'center',
         }}
       />

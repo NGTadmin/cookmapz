@@ -1,6 +1,10 @@
 import type { Profile } from '../types/database';
 import { supabase } from './supabase';
 
+export const DISPLAY_NAME_MAX = 50;
+export const HANDLE_MAX = 30;
+export const BIO_MAX = 500;
+
 export type ProfileUpdateInput = {
   display_name?: string;
   handle?: string;
@@ -9,7 +13,12 @@ export type ProfileUpdateInput = {
 };
 
 export function normalizeHandle(raw: string): string {
-  return raw.replace(/^@/, '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+  return raw
+    .replace(/^@/, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '')
+    .slice(0, HANDLE_MAX);
 }
 
 export function isProfileSetupIncomplete(profile: Profile | null): boolean {
@@ -58,7 +67,9 @@ export async function updateUserProfile(userId: string, input: ProfileUpdateInpu
   } = {};
 
   if (input.display_name !== undefined) {
-    payload.display_name = input.display_name.trim() || null;
+    const displayName = input.display_name.trim().slice(0, DISPLAY_NAME_MAX);
+    if (!displayName) throw new Error('Add a display name.');
+    payload.display_name = displayName;
   }
   if (input.handle !== undefined) {
     const handle = normalizeHandle(input.handle);
@@ -68,22 +79,44 @@ export async function updateUserProfile(userId: string, input: ProfileUpdateInpu
     payload.avatar_url = input.avatar_url;
   }
   if (input.bio !== undefined) {
-    payload.bio = input.bio?.trim() || null;
+    const bio = input.bio?.trim().slice(0, BIO_MAX) ?? '';
+    payload.bio = bio || null;
   }
 
+  // Don't use .single(): zero matching rows makes PostgREST throw
+  // "Cannot coerce the result to a single JSON object" even when the text is fine.
   const { data, error } = await supabase
     .from('profiles')
     .update(payload)
     .eq('id', userId)
-    .select('*')
-    .single();
+    .select('*');
 
-  if (error) {
-    if (error.code === '23505') {
-      throw new Error('That handle is already taken. Try another.');
-    }
-    throw new Error(error.message);
+  if (error) throw new Error(profileWriteError(error));
+  if (data?.[0]) return data[0] as Profile;
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('profiles')
+    .insert({ id: userId, ...payload })
+    .select('*');
+
+  if (insertError) throw new Error(profileWriteError(insertError));
+  if (!inserted?.[0]) {
+    throw new Error('Could not save your profile. Sign out, sign in again, and try once more.');
   }
 
-  return data as Profile;
+  return inserted[0] as Profile;
+}
+
+function profileWriteError(error: { code?: string; message: string; details?: string | null }): string {
+  const detail = `${error.message} ${error.details ?? ''}`;
+  if (error.code === '23505' && /handle/i.test(detail)) {
+    return 'That handle is already taken. Try another.';
+  }
+  if (error.code === '23505') {
+    return 'Could not save your profile. Sign out, sign in again, and try once more.';
+  }
+  if (error.code === 'PGRST116' || /cannot coerce the result to a single json object/i.test(error.message)) {
+    return 'Could not save your profile. Sign out, sign in again, and try once more.';
+  }
+  return error.message;
 }
