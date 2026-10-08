@@ -19,7 +19,14 @@ import { CreatorAvatar } from '../../components/cook/CreatorAvatar';
 import { ProfileSettingsMenu } from '../../components/cook/ProfileSettingsMenu';
 import { formatCount } from '../../data/lives';
 import { useAuth } from '../../contexts/AuthContext';
-import { deleteCreatorPost, applyCreatorProfileToStream, displayHandle, fetchPostsByCreator } from '../../lib/creatorPosts';
+import {
+  deleteCreatorPost,
+  applyCreatorProfileToStream,
+  displayHandle,
+  fetchPostsByCreator,
+  setPostThumbnail,
+  uploadPostThumbnail,
+} from '../../lib/creatorPosts';
 import { confirmDestructive, showAlert } from '../../lib/confirmAction';
 import { useWebLayout } from '../../hooks/useWebLayout';
 import { isProfileSetupIncomplete, updateUserProfile, uploadProfileAvatar } from '../../lib/profiles';
@@ -36,6 +43,7 @@ function VideoOptionsMenu({
   onToggle,
   onClose,
   onDelete,
+  onChangeThumbnail,
   deleting,
   align = 'right',
   compact = false,
@@ -44,6 +52,7 @@ function VideoOptionsMenu({
   onToggle: () => void;
   onClose: () => void;
   onDelete: () => void;
+  onChangeThumbnail: () => void;
   deleting: boolean;
   align?: 'left' | 'right';
   compact?: boolean;
@@ -83,6 +92,21 @@ function VideoOptionsMenu({
           <Pressable
             onPress={() => {
               onClose();
+              onChangeThumbnail();
+            }}
+            className="flex-row items-center px-4 py-3"
+          >
+            <Ionicons name="image-outline" size={18} color="#fff" />
+            <Text
+              className="ml-2.5 text-[14px] text-white"
+              style={{ fontFamily: 'DMSans_600SemiBold' }}
+            >
+              Thumbnail
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              onClose();
               onDelete();
             }}
             className="flex-row items-center px-4 py-3"
@@ -110,7 +134,8 @@ export function ProfileScreen() {
   const bottomNavInset = 58 + Math.max(insets.bottom, 10);
   const horizontalPad = isDesktop ? 40 : 20;
   const profilePadding = horizontalPad * 2;
-  const gridGap = isDesktop ? 10 : 2;
+  const gridGap = isDesktop ? 16 : 2;
+  const tileRatio = isDesktop ? 1.2 : 1.35;
   const cellSize = Math.floor((profileWidth - profilePadding - gridGap * 2) / 3);
   const plateCellSize = Math.floor((profileWidth - profilePadding - gridGap) / 2);
   const [streams, setStreams] = useState<LiveStream[]>([]);
@@ -128,6 +153,7 @@ export function ProfileScreen() {
   const [createPlateOpen, setCreatePlateOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [thumbnailBusyId, setThumbnailBusyId] = useState<string | null>(null);
   const [commentStream, setCommentStream] = useState<LiveStream | null>(null);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const listRef = useRef<FlatList<LiveStream>>(null);
@@ -230,6 +256,56 @@ export function ProfileScreen() {
   const handle = profile ? displayHandle(profile) : '@neighbor';
   const setupIncomplete = isProfileSetupIncomplete(profile);
 
+  const changeThumbnail = useCallback(
+    async (stream: LiveStream) => {
+      if (!user) return;
+
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Allow photo access to choose a thumbnail.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [3, 4],
+        quality: 0.85,
+      });
+
+      if (result.canceled || !result.assets[0]) return;
+
+      setThumbnailBusyId(stream.id);
+      setViewerMenuOpen(false);
+      setGridMenuId(null);
+      try {
+        const asset = result.assets[0];
+        const publicUrl = await uploadPostThumbnail(
+          user.id,
+          stream.id,
+          asset.uri,
+          asset.mimeType ?? 'image/jpeg',
+        );
+        await setPostThumbnail(stream.id, user.id, publicUrl);
+        setStreams((prev) =>
+          prev.map((item) =>
+            item.id === stream.id
+              ? { ...item, thumbnailUrl: publicUrl, coverImage: publicUrl }
+              : item,
+          ),
+        );
+      } catch (e) {
+        showAlert(
+          'Could not update thumbnail',
+          e instanceof Error ? e.message : 'Try again.',
+        );
+      } finally {
+        setThumbnailBusyId(null);
+      }
+    },
+    [user],
+  );
+
   const pickProfilePhoto = useCallback(async () => {
     if (!user) return;
 
@@ -290,7 +366,11 @@ export function ProfileScreen() {
       >
         <Text
           className="text-white"
-          style={{ fontFamily: 'Syne_800ExtraBold', fontSize: isDesktop ? 40 : 28 }}
+          style={{
+            fontFamily: 'Syne_700Bold',
+            fontSize: isDesktop ? 32 : 28,
+            lineHeight: isDesktop ? 40 : 34,
+          }}
         >
           Profile
         </Text>
@@ -326,10 +406,7 @@ export function ProfileScreen() {
           }}
           onScrollBeginDrag={() => setGridMenuId(null)}
           ListHeaderComponent={
-            <View
-              className="items-center"
-              style={{ marginBottom: isDesktop ? 36 : 20, paddingTop: isDesktop ? 16 : 8 }}
-            >
+            <View style={{ marginBottom: isDesktop ? 40 : 20, paddingTop: isDesktop ? 12 : 8 }}>
               {setupIncomplete ? (
                 <Pressable
                   onPress={() => setEditProfileOpen(true)}
@@ -365,12 +442,19 @@ export function ProfileScreen() {
                 </Pressable>
               ) : null}
 
+              <View
+                style={
+                  isDesktop
+                    ? { flexDirection: 'row', alignItems: 'flex-start', gap: 40 }
+                    : { alignItems: 'center' }
+                }
+              >
               <Pressable onPress={() => void pickProfilePhoto()} disabled={avatarBusy} className="relative">
                 <CreatorAvatar
                   uri={profile?.avatar_url}
                   name={profile?.display_name ?? user?.email?.split('@')[0]}
                   email={profile?.email ?? user?.email}
-                  size={isDesktop ? 132 : 96}
+                  size={isDesktop ? 148 : 96}
                   style={{ opacity: avatarBusy ? 0.6 : 1 }}
                 />
                 <View
@@ -384,20 +468,15 @@ export function ProfileScreen() {
                   )}
                 </View>
               </Pressable>
-              <Pressable onPress={() => setEditProfileOpen(true)} style={{ marginTop: isDesktop ? 16 : 12 }}>
-                <Text
-                  className="text-white"
-                  style={{ fontFamily: 'DMSans_500Medium', fontSize: isDesktop ? 15 : 13 }}
-                >
-                  Edit profile
-                </Text>
-              </Pressable>
+              <View style={isDesktop ? { flex: 1, paddingTop: 6 } : { alignItems: 'center' }}>
               <Text
                 className="text-white"
                 style={{
-                  fontFamily: 'Syne_800ExtraBold',
-                  fontSize: isDesktop ? 32 : 22,
-                  marginTop: isDesktop ? 16 : 12,
+                  fontFamily: 'Syne_700Bold',
+                  fontSize: isDesktop ? 36 : 22,
+                  lineHeight: isDesktop ? 44 : 28,
+                  marginTop: isDesktop ? 0 : 12,
+                  textAlign: isDesktop ? 'left' : 'center',
                 }}
               >
                 {name}
@@ -407,24 +486,53 @@ export function ProfileScreen() {
                   fontFamily: 'DMSans_500Medium',
                   color: cookTheme.textMuted,
                   fontSize: isDesktop ? 16 : 14,
-                  marginTop: 4,
+                  lineHeight: isDesktop ? 24 : 20,
+                  marginTop: 6,
+                  textAlign: isDesktop ? 'left' : 'center',
                 }}
               >
                 {handle}
               </Text>
               {profile?.bio ? (
                 <Text
-                  className="mt-3 text-center text-[13px] leading-5"
-                  style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
+                  style={{
+                    fontFamily: 'DMSans_400Regular',
+                    color: cookTheme.textMuted,
+                    fontSize: isDesktop ? 16 : 13,
+                    lineHeight: isDesktop ? 26 : 20,
+                    marginTop: isDesktop ? 14 : 12,
+                    textAlign: isDesktop ? 'left' : 'center',
+                    maxWidth: isDesktop ? 560 : 320,
+                  }}
                 >
                   {profile.bio}
                 </Text>
               ) : null}
 
-              <View className="flex-row" style={{ marginTop: isDesktop ? 28 : 20, gap: isDesktop ? 56 : 32 }}>
+              <View
+                className="flex-row"
+                style={{
+                  marginTop: isDesktop ? 22 : 20,
+                  gap: isDesktop ? 40 : 32,
+                  alignSelf: isDesktop ? 'flex-start' : 'center',
+                }}
+              >
                 <Stat label="Videos" value={String(streams.length)} large={isDesktop} />
                 <Stat label="Live" value={String(streams.filter((s) => s.isLive).length)} large={isDesktop} />
                 <Stat label="Likes" value={formatCount(totalLikes)} large={isDesktop} />
+              </View>
+              <Pressable
+                onPress={() => setEditProfileOpen(true)}
+                style={{ marginTop: isDesktop ? 18 : 12, alignSelf: isDesktop ? 'flex-start' : 'center' }}
+              >
+                <Text
+                  className="text-white"
+                  style={{ fontFamily: 'DMSans_500Medium', fontSize: isDesktop ? 15 : 13, lineHeight: 22 }}
+                >
+                  Edit profile
+                </Text>
+              </Pressable>
+              </View>
               </View>
 
               <View
@@ -472,7 +580,7 @@ export function ProfileScreen() {
             const isDeleting = deletingId === stream.id;
             const menuOpen = gridMenuId === stream.id;
             return (
-              <View style={{ width: cellSize, height: cellSize * 1.35, opacity: isDeleting ? 0.5 : 1 }}>
+              <View style={{ width: cellSize, height: cellSize * tileRatio, opacity: isDeleting ? 0.5 : 1 }}>
                 {menuOpen ? (
                   <Pressable
                     className="absolute inset-0 z-20"
@@ -519,8 +627,9 @@ export function ProfileScreen() {
                     open={menuOpen}
                     onToggle={() => setGridMenuId((current) => (current === stream.id ? null : stream.id))}
                     onClose={() => setGridMenuId(null)}
+                    onChangeThumbnail={() => void changeThumbnail(stream)}
                     onDelete={() => void deleteStream(stream)}
-                    deleting={isDeleting}
+                    deleting={isDeleting || thumbnailBusyId === stream.id}
                   />
                 </View>
               </View>
@@ -560,8 +669,12 @@ export function ProfileScreen() {
                 open={viewerMenuOpen}
                 onToggle={() => setViewerMenuOpen((value) => !value)}
                 onClose={() => setViewerMenuOpen(false)}
+                onChangeThumbnail={() => void changeThumbnail(displayStreams[viewerIndex])}
                 onDelete={() => void deleteStream(displayStreams[viewerIndex])}
-                deleting={deletingId === displayStreams[viewerIndex]?.id}
+                deleting={
+                  deletingId === displayStreams[viewerIndex]?.id ||
+                  thumbnailBusyId === displayStreams[viewerIndex]?.id
+                }
               />
             ) : null}
           </View>
@@ -636,7 +749,10 @@ export function ProfileScreen() {
 function Stat({ label, value, large = false }: { label: string; value: string; large?: boolean }) {
   return (
     <View className="items-center">
-      <Text className="text-white" style={{ fontFamily: 'Syne_700Bold', fontSize: large ? 24 : 18 }}>
+      <Text
+        className="text-white"
+        style={{ fontFamily: 'Syne_700Bold', fontSize: large ? 22 : 18, lineHeight: large ? 28 : 24 }}
+      >
         {value}
       </Text>
       <Text
@@ -644,6 +760,7 @@ function Stat({ label, value, large = false }: { label: string; value: string; l
           fontFamily: 'DMSans_400Regular',
           color: cookTheme.textMuted,
           fontSize: large ? 14 : 12,
+          lineHeight: large ? 20 : 16,
           marginTop: 4,
         }}
       >

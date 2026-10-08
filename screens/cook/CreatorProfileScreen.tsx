@@ -83,8 +83,8 @@ function ProfileBackHeader({
 
 export function CreatorProfileScreen({ creatorKey, startPostId, onBack, onDonate }: Props) {
   const { height, profileWidth, isWeb, isDesktop } = useWebLayout();
-  const profilePadding = 40;
-  const gridGap = 2;
+  const profilePadding = isDesktop ? 80 : 40;
+  const gridGap = isDesktop ? 16 : 2;
   const cellSize = Math.floor((profileWidth - profilePadding - gridGap * 2) / 3);
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [streams, setStreams] = useState<LiveStream[]>([]);
@@ -202,41 +202,76 @@ export function CreatorProfileScreen({ creatorKey, startPostId, onBack, onDonate
           width: cellSize * 3 + gridGap * 2,
           alignSelf: 'center',
         }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: isDesktop ? 40 : 20, paddingBottom: 32 }}
         ListHeaderComponent={
-          <View className="mb-5 items-center pt-2">
+          <View className="mb-5 pt-2">
+            <View
+              style={
+                isDesktop
+                  ? { flexDirection: 'row', alignItems: 'flex-start', gap: 36 }
+                  : { alignItems: 'center' }
+              }
+            >
             <CreatorAvatar
               uri={profile?.avatar_url}
               name={profile?.display_name ?? streams[0]?.chefName}
-              size={96}
+              size={isDesktop ? 132 : 96}
             />
-            <Text className="mt-3 text-[22px] text-white" style={{ fontFamily: 'Syne_800ExtraBold' }}>
+            <View style={isDesktop ? { flex: 1, paddingTop: 4 } : { alignItems: 'center' }}>
+            <Text
+              className="text-white"
+              style={{
+                fontFamily: 'Syne_700Bold',
+                fontSize: isDesktop ? 34 : 22,
+                lineHeight: isDesktop ? 42 : 28,
+                marginTop: isDesktop ? 0 : 12,
+                textAlign: isDesktop ? 'left' : 'center',
+              }}
+            >
               {name}
             </Text>
             <Text
-              className="mt-0.5 text-[14px]"
-              style={{ fontFamily: 'DMSans_500Medium', color: cookTheme.textMuted }}
+              style={{
+                fontFamily: 'DMSans_500Medium',
+                color: cookTheme.textMuted,
+                fontSize: isDesktop ? 16 : 14,
+                lineHeight: isDesktop ? 24 : 20,
+                marginTop: 6,
+                textAlign: isDesktop ? 'left' : 'center',
+              }}
             >
               {handle}
             </Text>
             {profile?.bio ? (
               <Text
-                className="mt-3 text-center text-[13px] leading-5"
-                style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
+                style={{
+                  fontFamily: 'DMSans_400Regular',
+                  color: cookTheme.textMuted,
+                  fontSize: isDesktop ? 16 : 13,
+                  lineHeight: isDesktop ? 26 : 20,
+                  marginTop: 12,
+                  textAlign: isDesktop ? 'left' : 'center',
+                  maxWidth: isDesktop ? 560 : 320,
+                }}
               >
                 {profile.bio}
               </Text>
             ) : null}
 
-            <View className="mt-5 flex-row gap-8">
-              <Stat label="Videos" value={String(streams.length)} />
-              <Stat label="Followers" value={formatCount(profile?.follower_count ?? 0)} />
-              <Stat label="Likes" value={formatCount(totalLikes)} />
+            <View
+              className="flex-row"
+              style={{ marginTop: isDesktop ? 20 : 20, gap: isDesktop ? 36 : 32, alignSelf: isDesktop ? 'flex-start' : 'center' }}
+            >
+              <Stat label="Videos" value={String(streams.length)} large={isDesktop} />
+              <Stat label="Followers" value={formatCount(profile?.follower_count ?? 0)} large={isDesktop} />
+              <Stat label="Likes" value={formatCount(totalLikes)} large={isDesktop} />
+            </View>
+            </View>
             </View>
 
             <Pressable
               className="mt-5 rounded-full px-8 py-2.5"
-              style={{ backgroundColor: cookTheme.accent }}
+              style={{ backgroundColor: cookTheme.accent, alignSelf: isDesktop ? 'flex-start' : 'center' }}
             >
               <Text className="text-[14px] text-white" style={{ fontFamily: 'DMSans_600SemiBold' }}>
                 Follow
@@ -262,7 +297,7 @@ export function CreatorProfileScreen({ creatorKey, startPostId, onBack, onDonate
           return (
             <Pressable
               onPress={() => openVideo(index)}
-              style={{ width: cellSize, height: cellSize * 1.35 }}
+              style={{ width: cellSize, height: cellSize * (isDesktop ? 1.2 : 1.35) }}
             >
               <StreamThumbnailImage stream={item} className="h-full w-full" />
               {item.isLive ? (
@@ -344,15 +379,23 @@ export function CreatorProfileScreen({ creatorKey, startPostId, onBack, onDonate
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, large = false }: { label: string; value: string; large?: boolean }) {
   return (
     <View className="items-center">
-      <Text className="text-[18px] text-white" style={{ fontFamily: 'Syne_700Bold' }}>
+      <Text
+        className="text-white"
+        style={{ fontFamily: 'Syne_700Bold', fontSize: large ? 22 : 18, lineHeight: large ? 28 : 24 }}
+      >
         {value}
       </Text>
       <Text
-        className="mt-0.5 text-[12px]"
-        style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
+        style={{
+          fontFamily: 'DMSans_400Regular',
+          color: cookTheme.textMuted,
+          fontSize: large ? 14 : 12,
+          lineHeight: large ? 20 : 16,
+          marginTop: 4,
+        }}
       >
         {label}
       </Text>

@@ -334,6 +334,49 @@ export async function deleteCreatorPost(
   }
 }
 
+export async function uploadPostThumbnail(
+  creatorId: string,
+  postId: string,
+  fileUri: string,
+  mimeType = 'image/jpeg',
+): Promise<string> {
+  const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
+  const path = `${creatorId}/${postId}-thumb.${ext}`;
+
+  const response = await fetch(fileUri);
+  if (!response.ok) {
+    throw new Error('Could not read the selected thumbnail.');
+  }
+  const blob = await response.blob();
+
+  const { error: uploadError } = await supabase.storage
+    .from('creator-videos')
+    .upload(path, blob, { contentType: mimeType, upsert: true });
+
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { data } = supabase.storage.from('creator-videos').getPublicUrl(path);
+  return `${data.publicUrl}?t=${Date.now()}`;
+}
+
+export async function setPostThumbnail(
+  postId: string,
+  creatorId: string,
+  thumbnailUrl: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('creator_posts')
+    .update({ thumbnail_url: thumbnailUrl, cover_image: thumbnailUrl })
+    .eq('id', postId)
+    .eq('creator_id', creatorId)
+    .select('id');
+
+  if (error) throw new Error(error.message);
+  if (!data?.length) {
+    throw new Error('Could not save the thumbnail.');
+  }
+}
+
 export async function uploadCreatorVideo(
   creatorId: string,
   postId: string,

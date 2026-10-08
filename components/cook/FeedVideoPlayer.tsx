@@ -83,7 +83,7 @@ const FeedVideoPoster = memo(function FeedVideoPoster({
 });
 
 const FeedVideoPlayerActive = forwardRef<FeedVideoPlayerRef, Props>(function FeedVideoPlayerActive(
-  { stream, posterUri, locked = false, onBuyTicket, isActive, shouldPreload = false },
+  { stream, posterUri, locked = false, onBuyTicket, isActive },
   ref,
 ) {
   const [userPaused, setUserPaused] = useState(false);
@@ -121,44 +121,34 @@ const FeedVideoPlayerActive = forwardRef<FeedVideoPlayerRef, Props>(function Fee
   useEffect(() => {
     if (!videoSource || !player || locked) return;
 
-    if (isActive) {
-      player.muted = false;
-      if (!userPaused) {
-        try {
-          player.play();
-        } catch (e) {
-          console.warn('[FeedVideoPlayer] autoplay failed:', e);
-        }
-      } else {
-        try {
-          player.pause();
-        } catch (e) {
-          console.warn('[FeedVideoPlayer] pause failed:', e);
-        }
-      }
-      return;
-    }
-
-    if (shouldPreload) {
+    const stop = () => {
       try {
+        player.pause();
         player.muted = true;
-        player.play();
+        player.volume = 0;
       } catch (e) {
-        console.warn('[FeedVideoPlayer] preload failed:', e);
+        console.warn('[FeedVideoPlayer] pause failed:', e);
       }
-      return;
+    };
+
+    if (!isActive || userPaused) {
+      stop();
+      return stop;
     }
 
     try {
-      player.pause();
       player.muted = false;
+      player.volume = 1;
+      player.play();
     } catch (e) {
-      console.warn('[FeedVideoPlayer] pause failed:', e);
+      console.warn('[FeedVideoPlayer] autoplay failed:', e);
     }
-  }, [isActive, locked, player, shouldPreload, userPaused, videoSource]);
+
+    return stop;
+  }, [isActive, locked, player, userPaused, videoSource]);
 
   const togglePlayback = useCallback(() => {
-    if (!player || locked) return;
+    if (!player || locked || !isActive) return;
 
     try {
       if (userPaused) {
@@ -171,7 +161,7 @@ const FeedVideoPlayerActive = forwardRef<FeedVideoPlayerRef, Props>(function Fee
     } catch (e) {
       console.warn('[FeedVideoPlayer] toggle playback failed:', e);
     }
-  }, [locked, player, userPaused]);
+  }, [isActive, locked, player, userPaused]);
 
   useImperativeHandle(ref, () => ({ togglePlayback }), [togglePlayback]);
 

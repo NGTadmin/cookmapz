@@ -7,7 +7,7 @@ const MOBILE_WEB_MAX_WIDTH = 512;
 /** Phone-width profile column on narrow web. */
 export const PROFILE_COLUMN_MAX_WIDTH = 560;
 /** Wider desktop profile so the header and grid aren't a thin centered strip. */
-export const PROFILE_COLUMN_DESKTOP_MAX_WIDTH = 960;
+export const PROFILE_COLUMN_DESKTOP_MAX_WIDTH = 1080;
 
 export function useWebLayout() {
   const { width, height } = useWindowDimensions();

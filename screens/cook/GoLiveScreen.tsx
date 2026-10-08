@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -20,7 +21,9 @@ import {
   endLivePost,
   fetchActiveLivePost,
   uploadCreatorVideo,
+  uploadPostThumbnail,
 } from '../../lib/creatorPosts';
+import { captureVideoFrameUri } from '../../lib/videoFrame';
 import { uploadShortToBunny } from '../../lib/bunnyUpload';
 import { isBunnyApiConfigured } from '../../lib/bunnyApi';
 import { supabase } from '../../lib/supabase';
@@ -83,6 +86,8 @@ export function GoLiveScreen() {
   const [error, setError] = useState<string | null>(null);
   const [videoUri, setVideoUri] = useState<string | null>(null);
   const [videoMime, setVideoMime] = useState('video/mp4');
+  const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
+  const [thumbnailMime, setThumbnailMime] = useState('image/jpeg');
   const [liveSession, setLiveSession] = useState<LiveSession | null>(null);
 
   const [title, setTitle] = useState('');
@@ -132,6 +137,26 @@ export function GoLiveScreen() {
     }
   }, []);
 
+  const pickThumbnail = useCallback(async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to choose a thumbnail.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [3, 4],
+      quality: 0.85,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setThumbnailUri(result.assets[0].uri);
+      setThumbnailMime(result.assets[0].mimeType ?? 'image/jpeg');
+    }
+  }, []);
+
   const publishShort = useCallback(async () => {
     if (!user) return;
     if (!title.trim()) {
@@ -159,14 +184,25 @@ export function GoLiveScreen() {
         pickup_neighborhood: pickupNeighborhood.trim(),
         ready_in_minutes: Number(readyInMinutes) || 30,
         status: 'processing',
-        cover_image: profile?.avatar_url ?? undefined,
       });
 
       if (!post) throw new Error('Could not create post');
 
+      let chosenThumb = thumbnailUri;
+      let chosenThumbMime = thumbnailMime;
+      let generatedFrame: string | null = null;
+      if (!chosenThumb) {
+        generatedFrame = await captureVideoFrameUri(videoUri);
+        if (generatedFrame) {
+          chosenThumb = generatedFrame;
+          chosenThumbMime = 'image/jpeg';
+        }
+      }
+
       const chefName = profile?.display_name ?? user.email?.split('@')[0] ?? 'Home Chef';
       const chefHandle = profile ? displayHandle(profile) : '@chef';
 
+      try {
       if (isBunnyApiConfigured) {
         const bunny = await uploadShortToBunny({
           title: title.trim(),
@@ -186,12 +222,16 @@ export function GoLiveScreen() {
           ],
         });
 
+        const uploadedThumb = chosenThumb
+          ? await uploadPostThumbnail(user.id, post.id, chosenThumb, chosenThumbMime)
+          : null;
+        const cover = uploadedThumb ?? bunny.thumbnailUrl ?? null;
         const { error: updateError } = await supabase
           .from('creator_posts')
           .update({
             bunny_video_id: bunny.videoId,
-            thumbnail_url: bunny.thumbnailUrl,
-            cover_image: bunny.thumbnailUrl ?? profile?.avatar_url ?? null,
+            thumbnail_url: cover,
+            cover_image: cover,
             status: 'published',
           })
           .eq('id', post.id);
@@ -200,11 +240,15 @@ export function GoLiveScreen() {
         setMessage('Short posted. It may take a minute to process, then check For You and your profile.');
       } else {
         const videoUrl = await uploadCreatorVideo(user.id, post.id, videoUri, videoMime);
+        const cover = chosenThumb
+          ? await uploadPostThumbnail(user.id, post.id, chosenThumb, chosenThumbMime)
+          : null;
         const { error: updateError } = await supabase
           .from('creator_posts')
           .update({
             video_url: videoUrl,
-            cover_image: profile?.avatar_url ?? null,
+            thumbnail_url: cover,
+            cover_image: cover,
             status: 'published',
           })
           .eq('id', post.id);
@@ -212,7 +256,11 @@ export function GoLiveScreen() {
         if (updateError) throw new Error(updateError.message);
         setMessage('Short posted. Check For You and your profile.');
       }
+      } finally {
+        if (generatedFrame) URL.revokeObjectURL(generatedFrame);
+      }
       setVideoUri(null);
+      setThumbnailUri(null);
       setTitle('');
       setDescription('');
     } catch (e) {
@@ -225,6 +273,8 @@ export function GoLiveScreen() {
     title,
     videoUri,
     videoMime,
+    thumbnailUri,
+    thumbnailMime,
     description,
     cuisine,
     minDonation,
@@ -453,6 +503,33 @@ export function GoLiveScreen() {
                     style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
                   >
                     Up to 3 minutes · MP4 or MOV
+                  </Text>
+                </View>
+              </Pressable>
+
+              <Pressable
+                onPress={() => void pickThumbnail()}
+                className="mb-5 flex-row items-center rounded-2xl border border-dashed border-white/20 px-4 py-4"
+                style={{ backgroundColor: cookTheme.surfaceElevated }}
+              >
+                {thumbnailUri ? (
+                  <Image
+                    source={{ uri: thumbnailUri }}
+                    style={{ width: 54, height: 72, borderRadius: 10 }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons name="image-outline" size={28} color={cookTheme.accentSoft} />
+                )}
+                <View className="ml-3 flex-1">
+                  <Text className="text-[15px] text-white" style={{ fontFamily: 'DMSans_600SemiBold' }}>
+                    {thumbnailUri ? 'Thumbnail ready — tap to change' : 'Choose a thumbnail'}
+                  </Text>
+                  <Text
+                    className="mt-0.5 text-[12px]"
+                    style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
+                  >
+                    Optional. If you skip this, a frame from the video is used.
                   </Text>
                 </View>
               </Pressable>

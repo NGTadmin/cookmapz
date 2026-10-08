@@ -137,16 +137,28 @@ export function FeedScreen({
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [feedHeight, setFeedHeight] = useState(windowHeight);
   const listRef = useRef<FlatList<LiveStream>>(null);
+  const activeIndexRef = useRef(0);
+  const feedHeightRef = useRef(feedHeight);
+  const streamCountRef = useRef(0);
+  feedHeightRef.current = feedHeight;
+  streamCountRef.current = displayStreams.length;
+
+  const commitActiveIndex = useCallback((index: number) => {
+    const clamped = Math.max(0, Math.min(index, Math.max(streamCountRef.current - 1, 0)));
+    if (clamped === activeIndexRef.current) return;
+    activeIndexRef.current = clamped;
+    setActiveIndex(clamped);
+  }, []);
 
   useEffect(() => {
     if (!focusStreamId || !displayStreams.length) return;
     const index = displayStreams.findIndex((stream) => stream.id === focusStreamId);
     if (index >= 0) {
       listRef.current?.scrollToIndex({ index, animated: true });
-      setActiveIndex(index);
+      commitActiveIndex(index);
     }
     onFocusStreamHandled?.();
-  }, [displayStreams, focusStreamId, onFocusStreamHandled]);
+  }, [commitActiveIndex, displayStreams, focusStreamId, onFocusStreamHandled]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined' || focusStreamId) return;
@@ -156,12 +168,15 @@ export function FeedScreen({
     const index = displayStreams.findIndex((stream) => stream.id === sharedId);
     if (index < 0) return;
     listRef.current?.scrollToIndex({ index, animated: false });
-    setActiveIndex(index);
-  }, [displayStreams, focusStreamId]);
+    commitActiveIndex(index);
+  }, [commitActiveIndex, displayStreams, focusStreamId]);
+
+  const commitActiveIndexRef = useRef(commitActiveIndex);
+  commitActiveIndexRef.current = commitActiveIndex;
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     const first = viewableItems[0];
-    if (first?.index != null) setActiveIndex(first.index);
+    if (first?.index != null) commitActiveIndexRef.current(first.index);
   }).current;
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
@@ -175,18 +190,18 @@ export function FeedScreen({
     });
   }, []);
 
-  const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.y / Math.max(feedHeight, 1));
-    if (index !== activeIndex) setActiveIndex(index);
-  };
+  const onFeedScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(e.nativeEvent.contentOffset.y / Math.max(feedHeightRef.current, 1));
+    commitActiveIndex(index);
+  }, [commitActiveIndex]);
 
   const goToVideo = useCallback(
     (index: number) => {
       if (index < 0 || index >= displayStreams.length) return;
       listRef.current?.scrollToIndex({ index, animated: true });
-      setActiveIndex(index);
+      commitActiveIndex(index);
     },
-    [displayStreams.length],
+    [commitActiveIndex, displayStreams.length],
   );
 
   const handleCommentCountChange = useCallback((postId: string, count: number) => {
@@ -334,7 +349,9 @@ export function FeedScreen({
         })}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        onMomentumScrollEnd={onMomentumScrollEnd}
+        onScroll={onFeedScroll}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={onFeedScroll}
         renderItem={renderFeedRow}
       />
       )}
