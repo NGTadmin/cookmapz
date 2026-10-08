@@ -271,13 +271,17 @@ export async function fetchActiveLivePost(
 }
 
 export async function endLivePost(postId: string, creatorId: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('creator_posts')
     .update({ is_live: false, status: 'ended' })
     .eq('id', postId)
-    .eq('creator_id', creatorId);
+    .eq('creator_id', creatorId)
+    .select('id');
 
   if (error) throw new Error(error.message);
+  if (!data?.length) {
+    throw new Error('Could not end the live stream. Try again.');
+  }
 }
 
 export async function deleteCreatorPost(

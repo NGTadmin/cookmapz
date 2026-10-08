@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { confirmDestructive } from '../../lib/confirmAction';
 import {
   createCreatorPost,
   displayHandle,
@@ -303,16 +304,16 @@ export function GoLiveScreen() {
   }, [liveSession, user]);
 
   const stopLive = useCallback(() => {
-    if (!liveSession) return;
-    Alert.alert(
-      'End live stream?',
-      'Your session will no longer appear as live in the feed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'End stream', style: 'destructive', onPress: () => void endLiveSession() },
-      ],
-    );
-  }, [endLiveSession, liveSession]);
+    if (!liveSession || busy) return;
+    void (async () => {
+      const confirmed = await confirmDestructive(
+        'End live stream?',
+        'Your session will no longer appear as live in the feed.',
+        'End stream',
+      );
+      if (confirmed) await endLiveSession();
+    })();
+  }, [busy, endLiveSession, liveSession]);
 
   return (
     <KeyboardAvoidingView
