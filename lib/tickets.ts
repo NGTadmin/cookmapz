@@ -23,10 +23,12 @@ export function ticketsForStream(stream: LiveStream): TicketOffering[] {
   return [
     {
       id: `ticket-${stream.id}`,
-      label: `Live ticket · ${stream.dishName}`,
-      description: `Watch ${stream.chefName} cook live in real time.`,
+      label: stream.isLive ? `Live ticket · ${stream.dishName}` : `Ticket · ${stream.dishName}`,
+      description: stream.isLive
+        ? `Watch ${stream.chefName} cook live in real time.`
+        : `Unlock ${stream.chefName}'s next live cook when they go live.`,
       price,
-      imageUrl: stream.coverImage ?? null,
+      imageUrl: stream.coverImage ?? stream.thumbnailUrl ?? null,
     },
   ];
 }

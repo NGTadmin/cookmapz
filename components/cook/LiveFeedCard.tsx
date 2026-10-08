@@ -6,6 +6,7 @@ import { formatCount } from '../../data/lives';
 import { useWebLayout } from '../../hooks/useWebLayout';
 import { formatDistanceLabel } from '../../lib/geo';
 import { resolveStreamThumbnail } from '../../lib/bunnyStream';
+import { shareStream } from '../../lib/share';
 import { streamRequiresTicket, ticketsForStream, userHasStreamAccess } from '../../lib/tickets';
 import { cookTheme } from '../../theme/cookTheme';
 import type { LiveStream, TicketOffering } from '../../types/live';
@@ -207,7 +208,11 @@ function ActionRail({
   webDesktop?: boolean;
 }) {
   return (
-    <View className={webDesktop ? 'ml-5 items-center pt-2' : 'absolute bottom-28 right-2 z-10 items-center'} pointerEvents="box-none">
+    <View
+      className={webDesktop ? 'ml-5 items-center pt-2' : 'absolute bottom-28 right-2 items-center'}
+      style={webDesktop ? undefined : { zIndex: 20 }}
+      pointerEvents="box-none"
+    >
       <Pressable onPress={() => onOpenCreator?.(stream)} className="mb-4 items-center" hitSlop={8}>
         <CreatorAvatar uri={stream.chefAvatar} name={stream.chefName} size={48} border />
         <View
@@ -238,7 +243,14 @@ function ActionRail({
         tint="#fff"
         webDesktop={webDesktop}
       />
-      <ActionButton icon="share-social-outline" label="Share" onPress={() => {}} webDesktop={webDesktop} />
+      <ActionButton
+        icon="share-social-outline"
+        label="Share"
+        onPress={() => {
+          void shareStream(stream);
+        }}
+        webDesktop={webDesktop}
+      />
     </View>
   );
 }

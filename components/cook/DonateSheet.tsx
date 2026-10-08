@@ -25,13 +25,26 @@ export function TicketSheet({ visible, stream, onClose, onAddTicket }: Props) {
         imageUrl: stream.coverImage ?? null,
       }));
 
+  const subtitle = stream.isLive
+    ? `${stream.chefName} · watch ${stream.dishName} cooked live`
+    : `${stream.chefName} · get a ticket for their next live cook`;
+
+  const footer = stream.isLive
+    ? 'Tickets unlock the live stream so you can watch your food being cooked in real time. After checkout, tap Join live from My Tickets.'
+    : 'Tickets unlock this cook’s next live stream. After checkout, find them under My Tickets when they go live.';
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable className="flex-1 justify-end bg-black/75" onPress={onClose}>
+      <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close ticket sheet"
+          onPress={onClose}
+          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
+        />
+        <View
           className="rounded-t-3xl px-5 pb-8 pt-4"
-          style={{ backgroundColor: cookTheme.surface }}
-          onPress={(e) => e.stopPropagation()}
+          style={{ backgroundColor: cookTheme.surface, zIndex: 1 }}
         >
           <View className="mb-4 items-center">
             <View className="mb-3 h-1 w-10 rounded-full bg-white/20" />
@@ -42,7 +55,7 @@ export function TicketSheet({ visible, stream, onClose, onAddTicket }: Props) {
               className="mt-1 text-center text-[13px]"
               style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
             >
-              {stream.chefName} · watch {stream.dishName} cooked live
+              {subtitle}
             </Text>
           </View>
 
@@ -107,11 +120,11 @@ export function TicketSheet({ visible, stream, onClose, onAddTicket }: Props) {
               className="flex-1 text-[12px] leading-4"
               style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
             >
-              Tickets unlock the live stream so you can watch your food being cooked in real time. After checkout, tap Join live from My Tickets.
+              {footer}
             </Text>
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

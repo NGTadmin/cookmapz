@@ -30,14 +30,7 @@ export function LoginScreen() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const resetForm = useCallback(() => {
-    setEmail('');
-    setPassword('');
-    setDisplayName('');
-    setError(null);
-    setMessage(null);
-  }, []);
+  const [pendingConfirmEmail, setPendingConfirmEmail] = useState<string | null>(null);
 
   const onSubmit = useCallback(async () => {
     setBusy(true);
@@ -59,14 +52,14 @@ export function LoginScreen() {
       if (result.error) {
         setError(result.error);
       } else if (result.needsEmailConfirmation) {
-        setMessage('Check your email to confirm your account, then sign in.');
-        setMode('sign-in');
-        resetForm();
+        setPendingConfirmEmail(trimmedEmail);
+        setPassword('');
+        setDisplayName('');
       }
     }
 
     setBusy(false);
-  }, [displayName, email, mode, password, resetForm, signIn, signUp]);
+  }, [displayName, email, mode, password, signIn, signUp]);
 
   const onGoogle = useCallback(async () => {
     setGoogleBusy(true);
@@ -167,6 +160,48 @@ export function LoginScreen() {
             </Text>
           </View>
 
+          {pendingConfirmEmail ? (
+            <View
+              className="rounded-3xl border border-white/10 px-5 py-6"
+              style={{ backgroundColor: cookTheme.surface }}
+            >
+              <View className="items-center">
+                <View
+                  className="mb-4 h-14 w-14 items-center justify-center rounded-full"
+                  style={{ backgroundColor: cookTheme.surfaceElevated }}
+                >
+                  <Ionicons name="mail-outline" size={28} color="#fff" />
+                </View>
+                <Text
+                  className="text-center text-[22px] text-white"
+                  style={{ fontFamily: 'Syne_800ExtraBold' }}
+                >
+                  Confirm your email
+                </Text>
+                <Text
+                  className="mt-3 text-center text-[14px] leading-5"
+                  style={{ fontFamily: 'DMSans_400Regular', color: cookTheme.textMuted }}
+                >
+                  We sent a confirmation link to {pendingConfirmEmail}. Open that email and tap the link to activate your account, then come back and sign in.
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  setPendingConfirmEmail(null);
+                  setMode('sign-in');
+                  setEmail(pendingConfirmEmail);
+                  setError(null);
+                  setMessage(null);
+                }}
+                className="mt-6 flex-row items-center justify-center rounded-2xl py-3.5"
+                style={{ backgroundColor: cookTheme.accent }}
+              >
+                <Text className="text-[15px] text-white" style={{ fontFamily: 'DMSans_600SemiBold' }}>
+                  Back to sign in
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
           <View
             className="rounded-3xl border border-white/10 px-5 py-6"
             style={{ backgroundColor: cookTheme.surface }}
@@ -307,6 +342,7 @@ export function LoginScreen() {
               )}
             </Pressable>
           </View>
+          )}
 
           <Text
             className="mt-5 text-center text-[12px] leading-5"

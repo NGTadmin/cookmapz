@@ -148,6 +148,17 @@ export function FeedScreen({
     onFocusStreamHandled?.();
   }, [displayStreams, focusStreamId, onFocusStreamHandled]);
 
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || focusStreamId) return;
+    const params = new URLSearchParams(window.location.search);
+    const sharedId = params.get('v');
+    if (!sharedId || !displayStreams.length) return;
+    const index = displayStreams.findIndex((stream) => stream.id === sharedId);
+    if (index < 0) return;
+    listRef.current?.scrollToIndex({ index, animated: false });
+    setActiveIndex(index);
+  }, [displayStreams, focusStreamId]);
+
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     const first = viewableItems[0];
     if (first?.index != null) setActiveIndex(first.index);
