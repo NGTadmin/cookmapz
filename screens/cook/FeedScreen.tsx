@@ -191,8 +191,16 @@ export function FeedScreen({
   }, []);
 
   const onFeedScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.y / Math.max(feedHeightRef.current, 1));
+    const height = Math.max(feedHeightRef.current, 1);
+    const position = e.nativeEvent.contentOffset.y / height;
+    const index = Math.round(position);
+    if (Math.abs(position - index) > 0.2) return;
     commitActiveIndex(index);
+  }, [commitActiveIndex]);
+
+  const onFeedScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const height = Math.max(feedHeightRef.current, 1);
+    commitActiveIndex(Math.round(e.nativeEvent.contentOffset.y / height));
   }, [commitActiveIndex]);
 
   const goToVideo = useCallback(
@@ -350,8 +358,8 @@ export function FeedScreen({
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         onScroll={onFeedScroll}
-        scrollEventThrottle={16}
-        onMomentumScrollEnd={onFeedScroll}
+        scrollEventThrottle={32}
+        onMomentumScrollEnd={onFeedScrollEnd}
         renderItem={renderFeedRow}
       />
       )}

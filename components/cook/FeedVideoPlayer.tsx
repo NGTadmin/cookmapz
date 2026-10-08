@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { bunnyCdnRequestHeaders, isBunnyCdnUrl, resolveStreamVideoSource } from '../../lib/bunnyStream';
 import { cookTheme } from '../../theme/cookTheme';
@@ -89,63 +89,48 @@ const FeedVideoPlayerActive = forwardRef<FeedVideoPlayerRef, Props>(function Fee
   const [userPaused, setUserPaused] = useState(false);
   const [firstFrameReady, setFirstFrameReady] = useState(false);
   const comingSoon = stream.isLive;
-  const videoSource =
-    comingSoon || locked
-      ? null
-      : resolveStreamVideoSource(stream.bunnyVideoId, stream.hlsUrl, stream.videoUrl, {
-          preferHls: stream.isLive,
-        });
+  const playbackSource = useMemo(() => {
+    if (comingSoon || locked) return null;
+    const resolved = resolveStreamVideoSource(stream.bunnyVideoId, stream.hlsUrl, stream.videoUrl, {
+      preferHls: stream.isLive,
+    });
+    if (!resolved) return null;
+    return {
+      uri: resolved.uri,
+      contentType: resolved.contentType,
+      headers: isBunnyCdnUrl(resolved.uri) ? bunnyCdnRequestHeaders() : undefined,
+    };
+  }, [comingSoon, locked, stream.bunnyVideoId, stream.hlsUrl, stream.isLive, stream.videoUrl]);
   const posterSource = useMemo(() => posterSourceFor(posterUri), [posterUri]);
-  const headers =
-    videoSource && isBunnyCdnUrl(videoSource.uri) ? bunnyCdnRequestHeaders() : undefined;
 
-  const player = useVideoPlayer(
-    videoSource
-      ? {
-          uri: videoSource.uri,
-          contentType: videoSource.contentType,
-          headers,
-        }
-      : null,
-    (p) => {
-      p.loop = true;
-      p.muted = false;
-    },
-  );
+  const player = useVideoPlayer(playbackSource, (p) => {
+    p.loop = true;
+    p.muted = true;
+  });
+  const playerRef = useRef(player);
+  playerRef.current = player;
 
   useEffect(() => {
     setFirstFrameReady(false);
     setUserPaused(false);
-  }, [stream.id, videoSource?.uri]);
+  }, [stream.id, playbackSource?.uri]);
 
   useEffect(() => {
-    if (!videoSource || !player || locked) return;
-
-    const stop = () => {
-      try {
-        player.pause();
-        player.muted = true;
-        player.volume = 0;
-      } catch (e) {
-        console.warn('[FeedVideoPlayer] pause failed:', e);
-      }
-    };
-
-    if (!isActive || userPaused) {
-      stop();
-      return stop;
-    }
+    const current = playerRef.current;
+    if (!current || locked || !playbackSource) return;
 
     try {
-      player.muted = false;
-      player.volume = 1;
-      player.play();
+      if (isActive && !userPaused) {
+        current.muted = false;
+        if (!current.playing) current.play();
+        return;
+      }
+      if (current.playing) current.pause();
+      current.muted = true;
     } catch (e) {
-      console.warn('[FeedVideoPlayer] autoplay failed:', e);
+      console.warn('[FeedVideoPlayer] playback sync failed:', e);
     }
-
-    return stop;
-  }, [isActive, locked, player, userPaused, videoSource]);
+  }, [isActive, locked, playbackSource, userPaused]);
 
   const togglePlayback = useCallback(() => {
     if (!player || locked || !isActive) return;
@@ -165,7 +150,7 @@ const FeedVideoPlayerActive = forwardRef<FeedVideoPlayerRef, Props>(function Fee
 
   useImperativeHandle(ref, () => ({ togglePlayback }), [togglePlayback]);
 
-  if (comingSoon || locked || !videoSource) {
+  if (comingSoon || locked || !playbackSource) {
     return (
       <FeedVideoPoster
         posterUri={posterUri}
